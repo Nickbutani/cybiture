@@ -1,5 +1,4 @@
 document.documentElement.classList.add("has-js");
-document.body.classList.add("has-sticky-cta");
 
 const revealItems = document.querySelectorAll(".reveal");
 const counters = document.querySelectorAll(".count");
@@ -7,6 +6,10 @@ const mobileStickyCta = document.querySelector(".mobile-sticky-cta");
 const contactSection = document.querySelector("#contact");
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let contactInView = false;
+
+if (mobileStickyCta) {
+  document.body.classList.add("has-sticky-cta");
+}
 
 const formatCounter = (value) => String(Math.round(value));
 
