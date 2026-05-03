@@ -762,6 +762,13 @@ h1 {
   text-align: center;
 }
 
+.thank-you-main {
+  display: grid;
+  min-height: calc(100vh - 141px);
+  align-items: center;
+  padding: 64px 0 16px;
+}
+
 html.has-js .reveal {
   opacity: 1;
   transform: translateY(18px);
