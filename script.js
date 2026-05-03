@@ -1,8 +1,12 @@
 document.documentElement.classList.add("has-js");
+document.body.classList.add("has-sticky-cta");
 
 const revealItems = document.querySelectorAll(".reveal");
 const counters = document.querySelectorAll(".count");
+const mobileStickyCta = document.querySelector(".mobile-sticky-cta");
+const contactSection = document.querySelector("#contact");
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let contactInView = false;
 
 const formatCounter = (value) => String(Math.round(value));
 
@@ -33,9 +37,20 @@ const animateCounter = (counter) => {
   requestAnimationFrame(tick);
 };
 
+const updateMobileCta = () => {
+  if (!mobileStickyCta) return;
+
+  const shouldShow = window.innerWidth <= 768 && window.scrollY > 420 && !contactInView;
+  mobileStickyCta.classList.toggle("is-visible", shouldShow);
+};
+
+window.addEventListener("scroll", updateMobileCta, { passive: true });
+window.addEventListener("resize", updateMobileCta);
+
 if (prefersReducedMotion || !("IntersectionObserver" in window)) {
   revealItems.forEach((item) => item.classList.add("is-visible"));
   counters.forEach(animateCounter);
+  updateMobileCta();
 } else {
   const revealObserver = new IntersectionObserver(
     (entries) => {
@@ -61,4 +76,18 @@ if (prefersReducedMotion || !("IntersectionObserver" in window)) {
 
   revealItems.forEach((item) => revealObserver.observe(item));
   counters.forEach((counter) => counterObserver.observe(counter));
+
+  if (contactSection) {
+    const contactObserver = new IntersectionObserver(
+      (entries) => {
+        contactInView = entries.some((entry) => entry.isIntersecting);
+        updateMobileCta();
+      },
+      { threshold: 0.08 },
+    );
+
+    contactObserver.observe(contactSection);
+  }
+
+  updateMobileCta();
 }
