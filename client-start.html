@@ -59,9 +59,13 @@
         </aside>
 
         <section class="onboarding-form-card">
-          <form class="lead-form onboarding-form" name="cybiture-client-onboarding" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="bot-field">
+          <form class="lead-form onboarding-form" name="cybiture-client-onboarding" method="POST" action="https://formsubmit.co/getsupport@cybiture.com">
             <input type="hidden" name="form-name" value="cybiture-client-onboarding" />
-            <p class="hidden-field"><label>Do not fill this out <input name="bot-field" /></label></p>
+            <input type="hidden" name="_subject" value="New Cybiture client onboarding" />
+            <input type="hidden" name="_next" value="https://cybiture.com/thank-you" />
+            <input type="hidden" name="_template" value="table" />
+            <input type="hidden" name="_captcha" value="false" />
+            <p class="hidden-field"><label>Do not fill this out <input name="_honey" /></label></p>
 
             <div class="form-section">
               <span>Business details</span>

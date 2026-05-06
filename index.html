@@ -439,10 +439,14 @@
           <a class="button button-primary" href="https://cal.com/cybiture">Book my free demo</a>
           <a class="button button-outline" href="/pricing.html">View pricing</a>
         </div>
-        <form class="lead-form" name="cybiture-demo-request" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="bot-field">
+        <form class="lead-form" name="cybiture-demo-request" method="POST" action="https://formsubmit.co/getsupport@cybiture.com">
           <input type="hidden" name="form-name" value="cybiture-demo-request" />
+          <input type="hidden" name="_subject" value="New Cybiture demo request" />
+          <input type="hidden" name="_next" value="https://cybiture.com/thank-you" />
+          <input type="hidden" name="_template" value="table" />
+          <input type="hidden" name="_captcha" value="false" />
           <p class="hidden-field">
-            <label>Do not fill this out <input name="bot-field" /></label>
+            <label>Do not fill this out <input name="_honey" /></label>
           </p>
           <div class="form-grid">
             <label>

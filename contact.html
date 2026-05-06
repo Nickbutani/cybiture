@@ -70,9 +70,13 @@
         <span class="tag tag-blue">Send details instead</span>
         <h2>Prefer to start with a message?</h2>
         <p>Send a few details and we will follow up by email.</p>
-        <form class="lead-form" name="cybiture-contact-request" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="bot-field">
+        <form class="lead-form" name="cybiture-contact-request" method="POST" action="https://formsubmit.co/getsupport@cybiture.com">
           <input type="hidden" name="form-name" value="cybiture-contact-request" />
-          <p class="hidden-field"><label>Do not fill this out <input name="bot-field" /></label></p>
+          <input type="hidden" name="_subject" value="New Cybiture contact request" />
+          <input type="hidden" name="_next" value="https://cybiture.com/thank-you" />
+          <input type="hidden" name="_template" value="table" />
+          <input type="hidden" name="_captcha" value="false" />
+          <p class="hidden-field"><label>Do not fill this out <input name="_honey" /></label></p>
           <div class="form-grid">
             <label>Name<input type="text" name="name" autocomplete="name" placeholder="Your name" required /></label>
             <label>Email<input type="email" name="email" autocomplete="email" placeholder="you@example.com" required /></label>
