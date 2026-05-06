@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Client Start | Cybiture</title>
+    <meta name="description" content="Cybiture client onboarding form for automation setup." />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="canonical" href="https://cybiture.com/client-start.html" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="preload" href="assets/cybiture-logo-cropped.png" as="image" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/favicon.png" />
+    <meta name="google-site-verification" content="50VWgKmeZrNLoH3f2TRV3bXLgcHGHYDisSirxOGul20" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q48Q4N22XZ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag("js", new Date());
+      gtag("config", "G-Q48Q4N22XZ");
+    </script>
+    <script type="text/javascript">
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "wl59if4qy4");
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Cybiture home"><img class="brand-logo" src="assets/cybiture-logo-cropped.png" alt="Cybiture" /></a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation" aria-label="Open menu"><span></span><span></span><span></span></button>
+      <nav class="site-nav" id="primary-navigation" aria-label="Primary navigation"><a href="/">Home</a><a href="/services.html">Services</a><a href="/pricing.html">Pricing</a><a href="/faq.html">FAQ</a><a href="/contact.html">Contact</a></nav>
+      <a class="button nav-cta" href="https://cal.com/cybiture">Book now</a>
+    </header>
+
+    <main id="main">
+      <section class="page-hero onboarding-hero reveal">
+        <span class="tag tag-blue">Client onboarding</span>
+        <h1>Tell us what to connect first.</h1>
+        <p>Use this form after a client is ready to start. It collects the business details, lead sources, tools, and automation priorities needed for setup.</p>
+      </section>
+
+      <section class="onboarding-shell reveal">
+        <aside class="onboarding-sidebar" aria-label="What happens next">
+          <span>Setup path</span>
+          <h2>From intake to launch</h2>
+          <ol>
+            <li><strong>Review details</strong><p>We confirm business info, lead sources, and main goals.</p></li>
+            <li><strong>Build workflow</strong><p>We create the tracker, messages, alerts, and follow-up steps.</p></li>
+            <li><strong>Test and launch</strong><p>We test the full path before the client starts using it.</p></li>
+          </ol>
+          <a class="button button-outline" href="/demo.html">Open demo page</a>
+        </aside>
+
+        <section class="onboarding-form-card">
+          <form class="lead-form onboarding-form" name="cybiture-client-onboarding" method="POST" action="/thank-you.html" data-netlify="true" netlify-honeypot="bot-field">
+            <input type="hidden" name="form-name" value="cybiture-client-onboarding" />
+            <p class="hidden-field"><label>Do not fill this out <input name="bot-field" /></label></p>
+
+            <div class="form-section">
+              <span>Business details</span>
+              <div class="form-grid">
+                <label>Business name<input type="text" name="business_name" placeholder="Example: North Dallas HVAC" required /></label>
+                <label>Owner / main contact<input type="text" name="contact_name" placeholder="Client name" required /></label>
+                <label>Email<input type="email" name="email" autocomplete="email" placeholder="owner@example.com" required /></label>
+                <label>Phone<input type="tel" name="phone" autocomplete="tel" placeholder="(555) 123-4567" required /></label>
+              </div>
+              <label>Website or booking link<input type="url" name="website" placeholder="https://example.com" /></label>
+              <div class="form-grid">
+                <label>Business type<input type="text" name="industry" placeholder="HVAC, dental, roofing, real estate..." required /></label>
+                <label>Selected plan
+                  <select name="selected_plan" required>
+                    <option value="">Choose one</option>
+                    <option>Starter</option>
+                    <option>Growth</option>
+                    <option>Pro</option>
+                    <option>Not sure yet</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <span>Lead sources</span>
+              <p>Where do new customers usually come from?</p>
+              <div class="checkbox-grid">
+                <label><input type="checkbox" name="lead_sources" value="Phone calls" /> Phone calls</label>
+                <label><input type="checkbox" name="lead_sources" value="Missed calls" /> Missed calls</label>
+                <label><input type="checkbox" name="lead_sources" value="Website forms" /> Website forms</label>
+                <label><input type="checkbox" name="lead_sources" value="Website chat" /> Website chat</label>
+                <label><input type="checkbox" name="lead_sources" value="Facebook or Instagram" /> Facebook or Instagram</label>
+                <label><input type="checkbox" name="lead_sources" value="Google Business Profile" /> Google Business Profile</label>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <span>Systems to connect</span>
+              <div class="form-grid">
+                <label>Calendar tool<input type="text" name="calendar_tool" placeholder="Google Calendar, Outlook, Cal.com, none yet" /></label>
+                <label>Lead tracker / CRM<input type="text" name="crm_tool" placeholder="Google Sheet, Jobber, HubSpot, none yet" /></label>
+                <label>Review link<input type="url" name="review_link" placeholder="Google review link if available" /></label>
+                <label>Business email<input type="email" name="business_email" placeholder="support@example.com" /></label>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <span>Automation goals</span>
+              <label>What should Cybiture automate first?<textarea name="automation_goals" rows="5" placeholder="Example: missed-call text-back, quote follow-up, review requests after each job..." required></textarea></label>
+              <label>Anything we should know before setup?<textarea name="setup_notes" rows="4" placeholder="Business hours, service area, tone of voice, team members, special instructions..."></textarea></label>
+            </div>
+
+            <label class="consent-line"><input type="checkbox" name="confirmed" required /> I confirm these details are accurate enough for Cybiture to begin setup.</label>
+
+            <div class="button-row"><button class="button button-primary" type="submit">Submit setup details</button></div>
+            <small>Need help? Email <a href="mailto:getsupport@cybiture.com">getsupport@cybiture.com</a>.</small>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div><a class="brand" href="/"><img class="brand-logo" src="assets/cybiture-logo-cropped.png" alt="Cybiture" /></a><p>Helping small businesses respond faster and win more customers</p></div><nav><a href="mailto:getsupport@cybiture.com">getsupport@cybiture.com</a><a href="/faq.html">FAQ</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><span>© 2026 Cybiture</span></nav></footer>
+    <script src="script.js"></script>
+  </body>
+</html>
