@@ -37,6 +37,7 @@
     </script>
   </head>
   <body class="thank-you-page">
+    <a class="skip-link" href="#main">Skip to main content</a>
     <header class="site-header">
       <a class="brand" href="/" aria-label="Cybiture home">
         <img class="brand-logo" src="assets/cybiture-logo-cropped.png" alt="Cybiture" />
@@ -51,20 +52,36 @@
         <a href="/contact.html">Contact</a>
       </nav>
 
-      <a class="button nav-cta" href="/contact.html">Get started</a>
+      <a class="button nav-cta" href="https://cal.com/cybiture">Book now</a>
     </header>
 
     <main id="main" class="thank-you-main">
-      <section class="cta">
+      <section class="thank-you-card">
         <span class="tag tag-teal">Message received</span>
-        <h1>Thanks for reaching out.</h1>
-        <p>
-          Your details were sent to Cybiture. We'll review them and get back to
-          you as soon as possible.
-        </p>
+        <h1>Your details are in. We’ll take it from here.</h1>
+        <p>Cybiture received your submission. We’ll review the details and follow up with the next step for your automation setup.</p>
+
+        <div class="thank-you-steps" aria-label="What happens next">
+          <article>
+            <span>1</span>
+            <h2>Review</h2>
+            <p>We check your request, plan, and business details.</p>
+          </article>
+          <article>
+            <span>2</span>
+            <h2>Reply</h2>
+            <p>You’ll receive an email with next steps or questions.</p>
+          </article>
+          <article>
+            <span>3</span>
+            <h2>Launch</h2>
+            <p>Once approved, we start building and testing your workflow.</p>
+          </article>
+        </div>
+
         <div class="button-row">
           <a class="button button-primary" href="https://cal.com/cybiture">Book a time now</a>
-          <a class="button button-outline" href="/">Back to home</a>
+          <a class="button button-outline" href="/demo.html">View demo</a>
         </div>
         <small>
           Prefer email? <a href="mailto:getsupport@cybiture.com">getsupport@cybiture.com</a>
@@ -87,5 +104,6 @@
         <span>© 2026 Cybiture</span>
       </nav>
     </footer>
+    <script src="script.js"></script>
   </body>
 </html>
