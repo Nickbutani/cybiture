@@ -1346,6 +1346,83 @@ h1 {
   transform: translateY(-4px);
 }
 
+.industry-hero {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 96px 80px 72px;
+  text-align: center;
+}
+
+.industry-hero h1 {
+  margin: 18px auto 20px;
+  color: var(--text);
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.industry-hero p {
+  max-width: 690px;
+  margin: 0 auto 30px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.industry-detail {
+  display: grid;
+  align-items: center;
+  gap: 48px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.75fr);
+}
+
+.industry-copy h2 {
+  margin: 16px 0 14px;
+  color: var(--text);
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(30px, 3.4vw, 46px);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.industry-copy p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.industry-outcome-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.industry-outcome-grid article {
+  padding: 24px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-subtle);
+}
+
+.industry-outcome-grid strong {
+  display: block;
+  color: var(--text);
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+}
+
+.industry-outcome-grid p {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 .page-card h2 {
   margin-top: 14px;
   margin-bottom: 6px;
@@ -2898,6 +2975,16 @@ html.has-js .hero.reveal {
     grid-template-columns: 1fr;
   }
 
+  .industry-hero {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .industry-detail,
+  .industry-outcome-grid {
+    grid-template-columns: 1fr;
+  }
+
   .audit-grid,
   .workflow-card {
     grid-template-columns: 1fr;
@@ -2970,6 +3057,19 @@ html.has-js .hero.reveal {
   .hero,
   .section {
     padding: 48px 24px;
+  }
+
+  .industry-hero {
+    padding: 56px 24px 48px;
+  }
+
+  .industry-hero h1 {
+    font-size: 34px;
+  }
+
+  .industry-hero p,
+  .industry-copy p {
+    font-size: 16px;
   }
 
   .button-row {
