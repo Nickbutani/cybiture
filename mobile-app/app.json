@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Cybiture",
+    "slug": "cybiture-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/cybiture-mark.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/cybiture-mark.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cybiture.app"
+    },
+    "android": {
+      "package": "com.cybiture.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/cybiture-mark.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/cybiture-mark.png"
+    }
+  }
+}
