@@ -21,8 +21,9 @@ const colors = {
   text: '#334155',
   muted: '#64748B',
   faint: '#E5E7EB',
-  surface: '#F6F8FB',
-  surfaceStrong: '#EEF4FA',
+  surface: '#F4F7FB',
+  surfaceStrong: '#EAF0F7',
+  line: '#DDE6F0',
   blue: '#0F5FFF',
   blueDark: '#185FA5',
   blueSoft: '#E0F2FE',
@@ -37,11 +38,11 @@ const colors = {
 };
 
 const cardShadow = {
-  elevation: 3,
+  elevation: 4,
   shadowColor: '#0F172A',
-  shadowOffset: { width: 0, height: 12 },
-  shadowOpacity: 0.08,
-  shadowRadius: 24,
+  shadowOffset: { width: 0, height: 16 },
+  shadowOpacity: 0.09,
+  shadowRadius: 28,
 };
 
 const softShadow = {
@@ -519,23 +520,40 @@ function HomeScreen({
   profile,
 }) {
   const newestLead = leads[0];
-  const liveAutomations = automations.filter((automation) => automation.status === 'Live').length;
   const reviews = activity.filter((event) => event.title.toLowerCase().includes('review')).length;
+  const protectedCount = leads.filter((lead) => lead.status !== 'Completed').length;
 
   return (
     <View>
       {isDemo ? <DemoNotice /> : null}
+      <DashboardHeader
+        businessName={profile?.business_name || 'Client Console'}
+        planName={profile?.plan_name || 'Growth'}
+      />
       <View style={styles.heroCard}>
         <View style={styles.heroGlow} />
         <View style={styles.heroTop}>
-          <Text style={styles.kicker}>{profile?.plan_name || 'Growth'} plan</Text>
-          <Text style={styles.heroStatus}>{liveAutomations} automations active</Text>
+          <Text style={styles.kicker}>Automation health</Text>
+          <Text style={styles.heroStatus}>Live system</Text>
         </View>
-        <Text style={styles.heroTitle}>Lead follow-up is running.</Text>
-        <Text style={styles.heroCopy}>
-          Cybiture is replying to missed calls, website forms, chats, and review requests in the
-          background.
-        </Text>
+        <View style={styles.healthRow}>
+          <View style={styles.healthRing}>
+            <Text style={styles.healthValue}>98</Text>
+            <Text style={styles.healthUnit}>%</Text>
+          </View>
+          <View style={styles.healthCopy}>
+            <Text style={styles.heroTitle}>Follow-up is covered.</Text>
+            <Text style={styles.heroCopy}>
+              Missed calls, forms, chats, and reviews are being watched in the background.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.heroDivider} />
+        <View style={styles.heroSignalRow}>
+          <HeroSignal label="Response" value="3m" />
+          <HeroSignal label="Protected" value={`${protectedCount} leads`} />
+          <HeroSignal label="Review" value={`${pendingApprovals} open`} />
+        </View>
         <View style={styles.heroActions}>
           <Pressable style={styles.primaryButton} onPress={onViewLeads}>
             <Text style={styles.primaryButtonText}>Review leads</Text>
@@ -543,11 +561,6 @@ function HomeScreen({
           <Pressable style={styles.secondaryButton} onPress={onViewApprovals}>
             <Text style={styles.secondaryButtonText}>Approvals</Text>
           </Pressable>
-        </View>
-        <View style={styles.heroSignalRow}>
-          <HeroSignal label="Response" value="3m" />
-          <HeroSignal label="Protected" value={`${leads.length} leads`} />
-          <HeroSignal label="Review" value={`${pendingApprovals} open`} />
         </View>
       </View>
 
@@ -615,6 +628,21 @@ function HomeScreen({
         ) : (
           <Text style={styles.emptyText}>No activity yet.</Text>
         )}
+      </View>
+    </View>
+  );
+}
+
+function DashboardHeader({ businessName, planName }) {
+  return (
+    <View style={styles.dashboardHeader}>
+      <View style={styles.dashboardCopy}>
+        <Text style={styles.screenLabel}>Today</Text>
+        <Text style={styles.dashboardTitle}>{businessName}</Text>
+        <Text style={styles.dashboardSubtitle}>{planName} client portal</Text>
+      </View>
+      <View style={styles.profileBadge}>
+        <Text style={styles.profileBadgeText}>CY</Text>
       </View>
     </View>
   );
@@ -975,6 +1003,7 @@ function TabBar({ activeTab, onChange }) {
             style={[styles.tabButton, active && styles.tabButtonActive]}
             onPress={() => onChange(tab.key)}
           >
+            <View style={[styles.tabDot, active && styles.tabDotActive]} />
             <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
           </Pressable>
         );
@@ -1144,6 +1173,55 @@ const styles = StyleSheet.create({
   signOutText: { color: colors.ink, fontSize: 12, fontWeight: '800' },
   scroll: { flex: 1 },
   scrollContent: { padding: 18, paddingBottom: 114 },
+  dashboardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    marginTop: 2,
+  },
+  dashboardCopy: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  screenLabel: {
+    color: colors.blueDark,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  dashboardTitle: {
+    color: colors.ink,
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.9,
+    lineHeight: 34,
+  },
+  dashboardSubtitle: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 5,
+  },
+  profileBadge: {
+    alignItems: 'center',
+    backgroundColor: colors.navy,
+    borderColor: 'rgba(15, 95, 255, 0.12)',
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 50,
+    justifyContent: 'center',
+    width: 50,
+    ...cardShadow,
+  },
+  profileBadgeText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+  },
   authWrap: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -1270,6 +1348,41 @@ const styles = StyleSheet.create({
     top: -58,
     width: 160,
   },
+  healthRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 16,
+  },
+  healthRing: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(224, 242, 254, 0.1)',
+    borderColor: '#35D29A',
+    borderRadius: 999,
+    borderWidth: 8,
+    height: 104,
+    justifyContent: 'center',
+    width: 104,
+  },
+  healthValue: {
+    color: colors.white,
+    fontSize: 30,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+    lineHeight: 32,
+  },
+  healthUnit: {
+    color: '#A7F3D0',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  healthCopy: {
+    flex: 1,
+  },
+  heroDivider: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    height: 1,
+    marginTop: 20,
+  },
   heroTop: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1280,10 +1393,10 @@ const styles = StyleSheet.create({
   heroStatus: { color: '#BFD7FF', fontSize: 13, fontWeight: '700' },
   heroTitle: {
     color: colors.white,
-    fontSize: 34,
+    fontSize: 29,
     fontWeight: '800',
-    letterSpacing: -0.9,
-    lineHeight: 39,
+    letterSpacing: -0.8,
+    lineHeight: 34,
   },
   heroCopy: { color: '#CBD5E1', fontSize: 15, lineHeight: 23, marginTop: 12 },
   heroActions: { flexDirection: 'row', gap: 10, marginTop: 22 },
@@ -1653,6 +1766,16 @@ const styles = StyleSheet.create({
   },
   tabButton: { alignItems: 'center', borderRadius: 14, flex: 1, paddingHorizontal: 5, paddingVertical: 11 },
   tabButtonActive: { backgroundColor: colors.blueSoft },
+  tabDot: {
+    backgroundColor: 'transparent',
+    borderRadius: 99,
+    height: 4,
+    marginBottom: 5,
+    width: 18,
+  },
+  tabDotActive: {
+    backgroundColor: colors.blue,
+  },
   tabText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
   tabTextActive: { color: colors.blueDark },
   modalBackdrop: { backgroundColor: 'rgba(15, 23, 42, 0.35)', flex: 1, justifyContent: 'flex-end' },
