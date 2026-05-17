@@ -34,6 +34,12 @@ If Safari says it cannot open the page, open the Expo Go app first and scan the 
 npm run start:tunnel
 ```
 
+If the tunnel is slow or blocked, use LAN mode while your phone and Mac are on the same Wi-Fi:
+
+```bash
+npm run start:lan
+```
+
 ## Connect Supabase
 
 1. Create a Supabase project.
