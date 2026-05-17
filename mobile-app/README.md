@@ -22,6 +22,18 @@ npm start
 
 Then scan the Expo QR code with the Expo app or run it in an iOS/Android simulator.
 
+For the easiest phone test, use Expo Go mode:
+
+```bash
+npm run start:go
+```
+
+If Safari says it cannot open the page, open the Expo Go app first and scan the QR code from inside Expo Go. If the phone and Mac are not on the same Wi-Fi, use:
+
+```bash
+npm run start:tunnel
+```
+
 ## Connect Supabase
 
 1. Create a Supabase project.
