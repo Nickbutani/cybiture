@@ -21,7 +21,8 @@ const colors = {
   text: '#334155',
   muted: '#64748B',
   faint: '#E5E7EB',
-  surface: '#F8FAFC',
+  surface: '#F6F8FB',
+  surfaceStrong: '#EEF4FA',
   blue: '#0F5FFF',
   blueDark: '#185FA5',
   blueSoft: '#E0F2FE',
@@ -33,6 +34,22 @@ const colors = {
   red: '#B91C1C',
   navy: '#09111F',
   white: '#FFFFFF',
+};
+
+const cardShadow = {
+  elevation: 3,
+  shadowColor: '#0F172A',
+  shadowOffset: { width: 0, height: 12 },
+  shadowOpacity: 0.08,
+  shadowRadius: 24,
+};
+
+const softShadow = {
+  elevation: 2,
+  shadowColor: '#185FA5',
+  shadowOffset: { width: 0, height: 10 },
+  shadowOpacity: 0.08,
+  shadowRadius: 20,
 };
 
 const tabs = [
@@ -509,6 +526,7 @@ function HomeScreen({
     <View>
       {isDemo ? <DemoNotice /> : null}
       <View style={styles.heroCard}>
+        <View style={styles.heroGlow} />
         <View style={styles.heroTop}>
           <Text style={styles.kicker}>{profile?.plan_name || 'Growth'} plan</Text>
           <Text style={styles.heroStatus}>{liveAutomations} automations active</Text>
@@ -526,6 +544,35 @@ function HomeScreen({
             <Text style={styles.secondaryButtonText}>Approvals</Text>
           </Pressable>
         </View>
+        <View style={styles.heroSignalRow}>
+          <HeroSignal label="Response" value="3m" />
+          <HeroSignal label="Protected" value={`${leads.length} leads`} />
+          <HeroSignal label="Review" value={`${pendingApprovals} open`} />
+        </View>
+      </View>
+
+      <View style={styles.quickGrid}>
+        <QuickTile
+          label="Approvals"
+          value={String(pendingApprovals)}
+          helper="ready for review"
+          tone="amber"
+          onPress={onViewApprovals}
+        />
+        <QuickTile
+          label="Lead inbox"
+          value={String(leads.length)}
+          helper="latest opportunities"
+          tone="blue"
+          onPress={onViewLeads}
+        />
+        <QuickTile
+          label="Setup"
+          value={`${completedCount}/5`}
+          helper="launch checklist"
+          tone="green"
+          onPress={onViewSetup}
+        />
       </View>
 
       <View style={styles.statGrid}>
@@ -570,6 +617,26 @@ function HomeScreen({
         )}
       </View>
     </View>
+  );
+}
+
+function HeroSignal({ label, value }) {
+  return (
+    <View style={styles.heroSignal}>
+      <Text style={styles.heroSignalValue}>{value}</Text>
+      <Text style={styles.heroSignalLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickTile({ label, value, helper, tone, onPress }) {
+  return (
+    <Pressable style={styles.quickTile} onPress={onPress}>
+      <View style={[styles.quickAccent, styles[`quickAccent${capitalize(tone)}`]]} />
+      <Text style={styles.quickValue}>{value}</Text>
+      <Text style={styles.quickLabel}>{label}</Text>
+      <Text style={styles.quickHelper}>{helper}</Text>
+    </Pressable>
   );
 }
 
@@ -844,6 +911,7 @@ function SectionHeader({ title, action, onPress }) {
 function LeadCard({ lead, onPress, featured = false }) {
   return (
     <Pressable style={[styles.leadCard, featured && styles.leadCardFeatured]} onPress={onPress}>
+      <View style={styles.leadAccent} />
       <View style={styles.leadTop}>
         <View style={styles.leadTitleWrap}>
           <Text style={styles.cardTitle}>{lead.contact_name}</Text>
@@ -1006,9 +1074,13 @@ function formatTime(timestamp) {
   return `${Math.round(diffHours / 24)} day`;
 }
 
+function capitalize(value) {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : '';
+}
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: colors.white },
-  app: { flex: 1, backgroundColor: colors.white },
+  safeArea: { flex: 1, backgroundColor: colors.surface },
+  app: { flex: 1, backgroundColor: colors.surface },
   centerScreen: {
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -1028,16 +1100,21 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    backgroundColor: colors.white,
-    borderBottomColor: colors.faint,
-    borderBottomWidth: 1,
+    backgroundColor: colors.surface,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   brand: { alignItems: 'center', flexDirection: 'row', gap: 10, flex: 1 },
-  logo: { height: 34, resizeMode: 'contain', width: 42 },
+  logo: {
+    backgroundColor: colors.white,
+    borderRadius: 14,
+    height: 38,
+    resizeMode: 'contain',
+    width: 46,
+  },
   brandName: {
     color: colors.ink,
     fontSize: 19,
@@ -1057,7 +1134,7 @@ const styles = StyleSheet.create({
   liveDot: { backgroundColor: colors.green, borderRadius: 99, height: 8, width: 8 },
   liveText: { color: '#047857', fontSize: 12, fontWeight: '800' },
   signOutButton: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.faint,
     borderRadius: 999,
     borderWidth: 1,
@@ -1066,7 +1143,7 @@ const styles = StyleSheet.create({
   },
   signOutText: { color: colors.ink, fontSize: 12, fontWeight: '800' },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 104 },
+  scrollContent: { padding: 18, paddingBottom: 114 },
   authWrap: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -1101,6 +1178,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 26,
     padding: 18,
+    ...cardShadow,
   },
   authToggle: {
     backgroundColor: colors.surface,
@@ -1120,7 +1198,7 @@ const styles = StyleSheet.create({
   authToggleText: { color: colors.muted, fontSize: 13, fontWeight: '800' },
   authToggleTextActive: { color: colors.ink },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.faint,
     borderRadius: 16,
     borderWidth: 1,
@@ -1177,9 +1255,20 @@ const styles = StyleSheet.create({
   errorAction: { color: colors.red, fontSize: 13, fontWeight: '800' },
   heroCard: {
     backgroundColor: colors.navy,
-    borderRadius: 28,
+    borderRadius: 30,
     overflow: 'hidden',
     padding: 24,
+    ...cardShadow,
+  },
+  heroGlow: {
+    backgroundColor: '#0F5FFF',
+    borderRadius: 999,
+    height: 160,
+    opacity: 0.18,
+    position: 'absolute',
+    right: -48,
+    top: -58,
+    width: 160,
   },
   heroTop: {
     alignItems: 'center',
@@ -1198,6 +1287,30 @@ const styles = StyleSheet.create({
   },
   heroCopy: { color: '#CBD5E1', fontSize: 15, lineHeight: 23, marginTop: 12 },
   heroActions: { flexDirection: 'row', gap: 10, marginTop: 22 },
+  heroSignalRow: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 18,
+    padding: 10,
+  },
+  heroSignal: {
+    flex: 1,
+  },
+  heroSignalValue: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  heroSignalLabel: {
+    color: '#93A4BC',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.blue,
@@ -1228,15 +1341,58 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
   },
   secondaryButtonText: { color: colors.white, fontSize: 14, fontWeight: '800' },
+  quickGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  quickTile: {
+    backgroundColor: colors.white,
+    borderColor: colors.faint,
+    borderRadius: 22,
+    borderWidth: 1,
+    flex: 1,
+    overflow: 'hidden',
+    padding: 14,
+    ...softShadow,
+  },
+  quickAccent: {
+    borderRadius: 99,
+    height: 5,
+    marginBottom: 12,
+    width: 34,
+  },
+  quickAccentBlue: { backgroundColor: colors.blue },
+  quickAccentAmber: { backgroundColor: colors.amber },
+  quickAccentGreen: { backgroundColor: colors.green },
+  quickValue: {
+    color: colors.ink,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+  },
+  quickLabel: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 3,
+  },
+  quickHelper: {
+    color: colors.muted,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 3,
+  },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   statCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.faint,
     borderRadius: 20,
     borderWidth: 1,
     flexBasis: '48%',
     flexGrow: 1,
     padding: 16,
+    ...softShadow,
   },
   statValue: { color: colors.ink, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
   statLabel: { color: colors.text, fontSize: 13, fontWeight: '800', marginTop: 3 },
@@ -1256,9 +1412,19 @@ const styles = StyleSheet.create({
     borderColor: colors.faint,
     borderRadius: 22,
     borderWidth: 1,
+    overflow: 'hidden',
     padding: 18,
+    ...softShadow,
   },
   leadCardFeatured: { backgroundColor: '#F8FBFF', borderColor: '#BFDBFE' },
+  leadAccent: {
+    backgroundColor: colors.blue,
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 4,
+  },
   leadTop: {
     alignItems: 'flex-start',
     flexDirection: 'row',
@@ -1294,11 +1460,12 @@ const styles = StyleSheet.create({
   statusTextGreen: { color: '#047857' },
   statusTextAmber: { color: '#92400E' },
   timeline: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.faint,
     borderRadius: 22,
     borderWidth: 1,
     padding: 16,
+    ...softShadow,
   },
   approvalCallout: {
     backgroundColor: colors.amberSoft,
@@ -1320,6 +1487,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     padding: 18,
+    ...softShadow,
   },
   approvalCard: {
     backgroundColor: colors.white,
@@ -1327,6 +1495,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     padding: 18,
+    ...softShadow,
   },
   approvalCardActive: {
     backgroundColor: '#FFFBEB',
@@ -1394,6 +1563,7 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 14,
     padding: 20,
+    ...cardShadow,
   },
   setupNumber: { color: colors.white, fontSize: 34, fontWeight: '800', letterSpacing: -0.4 },
   setupTextWrap: { flex: 1 },
@@ -1406,6 +1576,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     padding: 16,
+    ...softShadow,
   },
   checkCircle: {
     alignItems: 'center',
@@ -1428,6 +1599,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     padding: 20,
+    ...softShadow,
   },
   supportTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   supportCopy: { color: colors.muted, fontSize: 14, lineHeight: 22, marginTop: 8 },
@@ -1446,34 +1618,38 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   contactCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.faint,
     borderRadius: 20,
     borderWidth: 1,
     marginTop: 14,
     padding: 18,
+    ...softShadow,
   },
   emptyCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.white,
     borderColor: colors.faint,
     borderRadius: 20,
     borderWidth: 1,
     padding: 18,
+    ...softShadow,
   },
   emptyText: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 6 },
   tabBar: {
     backgroundColor: colors.white,
-    borderTopColor: colors.faint,
-    borderTopWidth: 1,
     bottom: 0,
     flexDirection: 'row',
     gap: 6,
-    left: 0,
+    left: 12,
     paddingBottom: 12,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingTop: 10,
     position: 'absolute',
-    right: 0,
+    right: 12,
+    borderColor: colors.faint,
+    borderRadius: 24,
+    borderWidth: 1,
+    ...cardShadow,
   },
   tabButton: { alignItems: 'center', borderRadius: 14, flex: 1, paddingHorizontal: 5, paddingVertical: 11 },
   tabButtonActive: { backgroundColor: colors.blueSoft },
