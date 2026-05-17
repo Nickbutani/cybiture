@@ -15,3 +15,9 @@ values
   ('CLIENT_PROFILE_ID', 'Review request delivered', 'Customer clicked the Google review link.'),
   ('CLIENT_PROFILE_ID', 'Form follow-up started', 'Bright Dental entered the Growth workflow.');
 
+insert into public.approval_requests
+  (client_id, title, category, status, body)
+values
+  ('CLIENT_PROFILE_ID', 'Missed-call text-back message', 'Message approval', 'Needs review', 'Hi, this is your business. Sorry we missed your call. What can we help with today?'),
+  ('CLIENT_PROFILE_ID', 'Website form follow-up timing', 'Timing approval', 'Needs review', 'Send the first SMS immediately, email after 5 minutes, and owner alert if no reply after 20 minutes.'),
+  ('CLIENT_PROFILE_ID', 'Review request sequence', 'Workflow approval', 'Approved', 'Send a review request 2 hours after a completed job, then one polite reminder after 3 days.');

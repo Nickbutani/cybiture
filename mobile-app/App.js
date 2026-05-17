@@ -38,10 +38,12 @@ const colors = {
 const tabs = [
   { key: 'home', label: 'Home' },
   { key: 'leads', label: 'Leads' },
-  { key: 'automations', label: 'Automations' },
+  { key: 'approvals', label: 'Approve' },
   { key: 'setup', label: 'Setup' },
   { key: 'support', label: 'Support' },
 ];
+
+const leadFilters = ['All', 'Needs review', 'Followed up', 'Booked', 'Completed'];
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -102,6 +104,7 @@ function ClientConsole({ session, isDemo }) {
   }, [isDemo, session]);
 
   const completedCount = workspace.checklist.filter((item) => item.is_done).length;
+  const pendingApprovals = workspace.approvals.filter((approval) => approval.status === 'Needs review').length;
 
   async function refreshWorkspace() {
     if (isDemo) {
@@ -142,6 +145,53 @@ function ClientConsole({ session, isDemo }) {
     }
   }
 
+  async function markLeadStatus(lead, status) {
+    setWorkspace((current) => ({
+      ...current,
+      leads: current.leads.map((item) => (item.id === lead.id ? { ...item, status } : item)),
+    }));
+    setSelectedLead(null);
+
+    if (isDemo) {
+      Alert.alert('Demo lead updated', `Lead marked as ${status}.`);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('leads')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', lead.id);
+
+    if (updateError) {
+      Alert.alert('Update failed', updateError.message);
+      refreshWorkspace();
+    }
+  }
+
+  async function updateApproval(approval, status) {
+    setWorkspace((current) => ({
+      ...current,
+      approvals: current.approvals.map((item) =>
+        item.id === approval.id ? { ...item, status } : item
+      ),
+    }));
+
+    if (isDemo) {
+      Alert.alert('Demo approval updated', `${approval.title} marked as ${status}.`);
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('approval_requests')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', approval.id);
+
+    if (updateError) {
+      Alert.alert('Approval failed', updateError.message);
+      refreshWorkspace();
+    }
+  }
+
   async function submitSupportRequest(requestBody) {
     if (!requestBody.trim()) {
       Alert.alert('Add a request', 'Write what the client needs changed first.');
@@ -175,8 +225,8 @@ function ClientConsole({ session, isDemo }) {
       return <LeadsScreen leads={workspace.leads} onLeadPress={setSelectedLead} />;
     }
 
-    if (activeTab === 'automations') {
-      return <AutomationsScreen automations={workspace.automations} />;
+    if (activeTab === 'approvals') {
+      return <ApprovalsScreen approvals={workspace.approvals} onDecision={updateApproval} />;
     }
 
     if (activeTab === 'setup') {
@@ -201,12 +251,14 @@ function ClientConsole({ session, isDemo }) {
         isDemo={isDemo}
         leads={workspace.leads}
         onLeadPress={setSelectedLead}
+        onViewApprovals={() => setActiveTab('approvals')}
         onViewLeads={() => setActiveTab('leads')}
         onViewSetup={() => setActiveTab('setup')}
+        pendingApprovals={pendingApprovals}
         profile={workspace.profile}
       />
     );
-  }, [activeTab, workspace, completedCount, loading, isDemo]);
+  }, [activeTab, workspace, completedCount, pendingApprovals, loading, isDemo]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -227,7 +279,11 @@ function ClientConsole({ session, isDemo }) {
         </ScrollView>
         <TabBar activeTab={activeTab} onChange={setActiveTab} />
       </View>
-      <LeadModal lead={selectedLead} onClose={() => setSelectedLead(null)} />
+      <LeadModal
+        lead={selectedLead}
+        onClose={() => setSelectedLead(null)}
+        onMarkStatus={markLeadStatus}
+      />
     </SafeAreaView>
   );
 }
@@ -246,7 +302,8 @@ async function loadWorkspace() {
     throw new Error('No client profile found for this login yet.');
   }
 
-  const [leadsResult, automationsResult, checklistResult, activityResult] = await Promise.all([
+  const [leadsResult, automationsResult, checklistResult, activityResult, approvalsResult] =
+    await Promise.all([
     supabase
       .from('leads')
       .select('*')
@@ -269,10 +326,19 @@ async function loadWorkspace() {
       .eq('client_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(10),
+    supabase
+      .from('approval_requests')
+      .select('*')
+      .eq('client_id', profile.id)
+      .order('created_at', { ascending: false }),
   ]);
 
   const firstError =
-    leadsResult.error || automationsResult.error || checklistResult.error || activityResult.error;
+    leadsResult.error ||
+    automationsResult.error ||
+    checklistResult.error ||
+    activityResult.error ||
+    (isMissingTableError(approvalsResult.error) ? null : approvalsResult.error);
 
   if (firstError) {
     throw firstError;
@@ -284,7 +350,12 @@ async function loadWorkspace() {
     automations: automationsResult.data || [],
     checklist: checklistResult.data || [],
     activity: activityResult.data || [],
+    approvals: isMissingTableError(approvalsResult.error) ? [] : approvalsResult.data || [],
   };
+}
+
+function isMissingTableError(error) {
+  return error?.code === 'PGRST205' || error?.code === '42P01';
 }
 
 function AuthScreen() {
@@ -423,9 +494,11 @@ function HomeScreen({
   completedCount,
   isDemo,
   leads,
+  onViewApprovals,
   onLeadPress,
   onViewLeads,
   onViewSetup,
+  pendingApprovals,
   profile,
 }) {
   const newestLead = leads[0];
@@ -449,8 +522,8 @@ function HomeScreen({
           <Pressable style={styles.primaryButton} onPress={onViewLeads}>
             <Text style={styles.primaryButtonText}>Review leads</Text>
           </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={onViewSetup}>
-            <Text style={styles.secondaryButtonText}>Setup status</Text>
+          <Pressable style={styles.secondaryButton} onPress={onViewApprovals}>
+            <Text style={styles.secondaryButtonText}>Approvals</Text>
           </Pressable>
         </View>
       </View>
@@ -458,7 +531,7 @@ function HomeScreen({
       <View style={styles.statGrid}>
         <StatCard label="New leads" value={String(leads.length)} helper="latest pipeline" />
         <StatCard label="Avg reply" value="3m" helper="vs hours" />
-        <StatCard label="Reviews" value={String(Math.max(reviews, 1))} helper="tracked activity" />
+        <StatCard label="Approvals" value={String(pendingApprovals)} helper="need review" />
         <StatCard label="Setup" value={`${completedCount}/5`} helper="tasks done" />
       </View>
 
@@ -467,6 +540,18 @@ function HomeScreen({
         <LeadCard lead={newestLead} onPress={() => onLeadPress(newestLead)} featured />
       ) : (
         <EmptyCard title="No leads yet" copy="New leads will appear here once sources are connected." />
+      )}
+
+      <SectionHeader title="Review required" action="Open" onPress={onViewApprovals} />
+      {pendingApprovals ? (
+        <View style={styles.approvalCallout}>
+          <Text style={styles.cardTitle}>{pendingApprovals} item needs approval</Text>
+          <Text style={styles.emptyText}>
+            Approve client-facing messages and workflow changes before they go live.
+          </Text>
+        </View>
+      ) : (
+        <EmptyCard title="Nothing waiting" copy="All client-facing automation changes are approved." />
       )}
 
       <SectionHeader title="Automation activity" />
@@ -490,8 +575,10 @@ function HomeScreen({
 
 function LeadsScreen({ leads, onLeadPress }) {
   const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState('All');
   const filtered = leads.filter((lead) =>
-    `${lead.contact_name} ${lead.business_name} ${lead.source}`.toLowerCase().includes(query.toLowerCase())
+    `${lead.contact_name} ${lead.business_name} ${lead.source}`.toLowerCase().includes(query.toLowerCase()) &&
+    (filter === 'All' || lead.status === filter)
   );
 
   return (
@@ -507,6 +594,21 @@ function LeadsScreen({ leads, onLeadPress }) {
         placeholderTextColor={colors.muted}
         style={styles.input}
       />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterBar}
+      >
+        {leadFilters.map((item) => (
+          <Pressable
+            key={item}
+            style={[styles.filterChip, filter === item && styles.filterChipActive]}
+            onPress={() => setFilter(item)}
+          >
+            <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{item}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
       <View style={styles.list}>
         {filtered.length ? (
           filtered.map((lead) => <LeadCard key={lead.id} lead={lead} onPress={() => onLeadPress(lead)} />)
@@ -514,6 +616,56 @@ function LeadsScreen({ leads, onLeadPress }) {
           <EmptyCard title="No matching leads" copy="Try searching by contact, company, or source." />
         )}
       </View>
+    </View>
+  );
+}
+
+function ApprovalsScreen({ approvals, onDecision }) {
+  const pending = approvals.filter((approval) => approval.status === 'Needs review');
+  const resolved = approvals.filter((approval) => approval.status !== 'Needs review');
+
+  return (
+    <View>
+      <Text style={styles.screenTitle}>Approvals</Text>
+      <Text style={styles.screenCopy}>
+        Review messages, timing changes, and workflows before Cybiture turns them live.
+      </Text>
+      <View style={styles.list}>
+        {[...pending, ...resolved].length ? (
+          [...pending, ...resolved].map((approval) => (
+            <ApprovalCard key={approval.id} approval={approval} onDecision={onDecision} />
+          ))
+        ) : (
+          <EmptyCard title="No approvals yet" copy="Message and workflow approvals will appear here." />
+        )}
+      </View>
+    </View>
+  );
+}
+
+function ApprovalCard({ approval, onDecision }) {
+  const needsReview = approval.status === 'Needs review';
+
+  return (
+    <View style={[styles.approvalCard, needsReview && styles.approvalCardActive]}>
+      <View style={styles.approvalTop}>
+        <View style={styles.leadTitleWrap}>
+          <Text style={styles.cardTitle}>{approval.title}</Text>
+          <Text style={styles.cardMeta}>{approval.category} · {formatTime(approval.created_at)}</Text>
+        </View>
+        <StatusPill label={approval.status} tone={needsReview ? 'amber' : 'green'} />
+      </View>
+      <Text style={styles.approvalBody}>{approval.body}</Text>
+      {needsReview ? (
+        <View style={styles.actionRow}>
+          <Pressable style={styles.approveButton} onPress={() => onDecision(approval, 'Approved')}>
+            <Text style={styles.approveButtonText}>Approve</Text>
+          </Pressable>
+          <Pressable style={styles.requestButton} onPress={() => onDecision(approval, 'Changes requested')}>
+            <Text style={styles.requestButtonText}>Request edits</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -763,7 +915,7 @@ function TabBar({ activeTab, onChange }) {
   );
 }
 
-function LeadModal({ lead, onClose }) {
+function LeadModal({ lead, onClose, onMarkStatus }) {
   if (!lead) {
     return null;
   }
@@ -793,9 +945,20 @@ function LeadModal({ lead, onClose }) {
             <Text style={styles.modalLabel}>Next step</Text>
             <Text style={styles.noteText}>{lead.next_step || 'Review when ready.'}</Text>
           </View>
-          <Pressable style={styles.primaryButtonWide} onPress={onClose}>
-            <Text style={styles.primaryButtonText}>Mark reviewed</Text>
-          </Pressable>
+          <View style={styles.modalActions}>
+            <Pressable
+              style={styles.primaryButtonWide}
+              onPress={() => onMarkStatus(lead, 'Followed up')}
+            >
+              <Text style={styles.primaryButtonText}>Mark reviewed</Text>
+            </Pressable>
+            <Pressable
+              style={styles.bookedButton}
+              onPress={() => onMarkStatus(lead, 'Booked')}
+            >
+              <Text style={styles.bookedButtonText}>Mark booked</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
     </Modal>
@@ -967,6 +1130,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  filterBar: {
+    gap: 8,
+    paddingBottom: 14,
+  },
+  filterChip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.faint,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  filterChipActive: {
+    backgroundColor: colors.blueSoft,
+    borderColor: '#BFDBFE',
+  },
+  filterText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  filterTextActive: {
+    color: colors.blueDark,
+  },
   demoNotice: {
     backgroundColor: colors.blueSoft,
     borderColor: '#BFDBFE',
@@ -1113,6 +1300,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
   },
+  approvalCallout: {
+    backgroundColor: colors.amberSoft,
+    borderColor: '#FCD34D',
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 18,
+  },
   timelineItem: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
   timelineDot: { backgroundColor: colors.green, borderRadius: 99, height: 10, marginTop: 5, width: 10 },
   timelineContent: { flex: 1 },
@@ -1126,6 +1320,62 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     padding: 18,
+  },
+  approvalCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.faint,
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 18,
+  },
+  approvalCardActive: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FCD34D',
+  },
+  approvalTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  approvalBody: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 22,
+    marginTop: 14,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  approveButton: {
+    alignItems: 'center',
+    backgroundColor: colors.blue,
+    borderRadius: 14,
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  approveButtonText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  requestButton: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: '#FCD34D',
+    borderRadius: 14,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  requestButtonText: {
+    color: '#92400E',
+    fontSize: 13,
+    fontWeight: '800',
   },
   automationTop: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   progressTrack: {
@@ -1264,4 +1514,23 @@ const styles = StyleSheet.create({
   modalValue: { color: colors.ink, flexShrink: 1, fontSize: 14, fontWeight: '700', textAlign: 'right' },
   noteBox: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 14, padding: 16 },
   noteText: { color: colors.text, fontSize: 14, lineHeight: 21, marginTop: 8 },
+  modalActions: {
+    gap: 10,
+    marginTop: 16,
+  },
+  bookedButton: {
+    alignItems: 'center',
+    backgroundColor: colors.greenSoft,
+    borderColor: '#A7F3D0',
+    borderRadius: 16,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 15,
+  },
+  bookedButtonText: {
+    color: '#047857',
+    fontSize: 14,
+    fontWeight: '800',
+  },
 });

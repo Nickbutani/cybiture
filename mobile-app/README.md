@@ -9,6 +9,8 @@ This is the first true mobile app MVP for Cybiture. It is built with Expo and Re
 - Automation activity view
 - Client setup checklist
 - Support screen with Cybiture contact actions
+- Client approvals for messages and workflow changes
+- Lead filters and lead status actions
 - Supabase-ready login and client database connection
 - Demo mode until Supabase environment keys are added
 
@@ -64,6 +66,7 @@ EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 - `setup_tasks`
 - `activity_events`
 - `support_requests`
+- `approval_requests`
 
 Row-level security is included so each client only sees their own data.
 

@@ -91,6 +91,33 @@ export const demoActivity = [
   },
 ];
 
+export const demoApprovals = [
+  {
+    id: 'P-1',
+    title: 'Missed-call text-back message',
+    category: 'Message approval',
+    status: 'Needs review',
+    body: 'Hi, this is Cybiture Demo Client. Sorry we missed your call. What can we help with today?',
+    created_at: new Date(Date.now() - 14 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'P-2',
+    title: 'Review request sequence',
+    category: 'Workflow approval',
+    status: 'Approved',
+    body: 'Send a review request 2 hours after a completed job, then one polite reminder after 3 days.',
+    created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 'P-3',
+    title: 'Website form follow-up timing',
+    category: 'Timing approval',
+    status: 'Needs review',
+    body: 'Send the first SMS immediately, email after 5 minutes, and owner alert if no reply after 20 minutes.',
+    created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
 export function getDemoWorkspace() {
   return {
     profile: demoProfile,
@@ -98,5 +125,6 @@ export function getDemoWorkspace() {
     automations: demoAutomations,
     checklist: demoChecklist,
     activity: demoActivity,
+    approvals: demoApprovals,
   };
 }

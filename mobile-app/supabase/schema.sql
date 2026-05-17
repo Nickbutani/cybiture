@@ -66,11 +66,23 @@ create table if not exists public.support_requests (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.approval_requests (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid not null references public.client_profiles(id) on delete cascade,
+  title text not null,
+  category text not null default 'Workflow approval',
+  status text not null default 'Needs review',
+  body text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create index if not exists leads_client_created_idx on public.leads (client_id, created_at desc);
 create index if not exists automations_client_idx on public.automations (client_id);
 create index if not exists setup_tasks_client_sort_idx on public.setup_tasks (client_id, sort_order);
 create index if not exists activity_events_client_created_idx on public.activity_events (client_id, created_at desc);
 create index if not exists support_requests_client_created_idx on public.support_requests (client_id, created_at desc);
+create index if not exists approval_requests_client_created_idx on public.approval_requests (client_id, created_at desc);
 
 alter table public.client_profiles enable row level security;
 alter table public.leads enable row level security;
@@ -78,6 +90,7 @@ alter table public.automations enable row level security;
 alter table public.setup_tasks enable row level security;
 alter table public.activity_events enable row level security;
 alter table public.support_requests enable row level security;
+alter table public.approval_requests enable row level security;
 
 drop policy if exists "Clients can read their profile" on public.client_profiles;
 create policy "Clients can read their profile"
@@ -94,6 +107,12 @@ drop policy if exists "Clients can read their leads" on public.leads;
 create policy "Clients can read their leads"
 on public.leads for select
 using (client_id in (select id from public.client_profiles where user_id = auth.uid()));
+
+drop policy if exists "Clients can update their leads" on public.leads;
+create policy "Clients can update their leads"
+on public.leads for update
+using (client_id in (select id from public.client_profiles where user_id = auth.uid()))
+with check (client_id in (select id from public.client_profiles where user_id = auth.uid()));
 
 drop policy if exists "Clients can read their automations" on public.automations;
 create policy "Clients can read their automations"
@@ -126,6 +145,17 @@ create policy "Clients can read support requests"
 on public.support_requests for select
 using (client_id in (select id from public.client_profiles where user_id = auth.uid()));
 
+drop policy if exists "Clients can read approval requests" on public.approval_requests;
+create policy "Clients can read approval requests"
+on public.approval_requests for select
+using (client_id in (select id from public.client_profiles where user_id = auth.uid()));
+
+drop policy if exists "Clients can update approval requests" on public.approval_requests;
+create policy "Clients can update approval requests"
+on public.approval_requests for update
+using (client_id in (select id from public.client_profiles where user_id = auth.uid()))
+with check (client_id in (select id from public.client_profiles where user_id = auth.uid()));
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -155,6 +185,23 @@ begin
     (profile_id, 'Missed-call text-back', 'Scheduled', 0, 'amber'),
     (profile_id, 'Website form follow-up', 'Scheduled', 0, 'amber'),
     (profile_id, 'Review request sequence', 'Scheduled', 0, 'amber');
+
+  insert into public.approval_requests (client_id, title, category, status, body)
+  values
+    (
+      profile_id,
+      'Missed-call text-back message',
+      'Message approval',
+      'Needs review',
+      'Hi, this is your business. Sorry we missed your call. What can we help with today?'
+    ),
+    (
+      profile_id,
+      'Review request sequence',
+      'Workflow approval',
+      'Needs review',
+      'Send a review request after each completed job, then one polite reminder after 3 days.'
+    );
 
   return new;
 end;
