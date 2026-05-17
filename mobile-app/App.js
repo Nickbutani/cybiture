@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -11,6 +13,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { getDemoWorkspace } from './lib/demoData';
+import { hasSupabaseConfig, supabase } from './lib/supabase';
 
 const colors = {
   ink: '#0F172A',
@@ -25,75 +29,11 @@ const colors = {
   greenSoft: '#DCFCE7',
   amber: '#EF9F27',
   amberSoft: '#FEF3C7',
+  redSoft: '#FEE2E2',
+  red: '#B91C1C',
   navy: '#09111F',
   white: '#FFFFFF',
 };
-
-const leads = [
-  {
-    id: 'L-1042',
-    name: 'Marcus Johnson',
-    company: 'Johnson HVAC',
-    source: 'Missed call',
-    status: 'Needs review',
-    value: '$1,850',
-    time: '8 min ago',
-    phone: '(555) 012-4421',
-    message: 'No answer after 6 PM. Auto text sent and customer replied with job details.',
-    nextStep: 'Confirm appointment window',
-  },
-  {
-    id: 'L-1041',
-    name: 'Sarah Patel',
-    company: 'Bright Dental',
-    source: 'Website form',
-    status: 'Followed up',
-    value: '$420',
-    time: '21 min ago',
-    phone: '(555) 019-3388',
-    message: 'Form came in from pricing page. Qualification email and SMS sequence started.',
-    nextStep: 'Wait for reply',
-  },
-  {
-    id: 'L-1040',
-    name: 'Jamie Lee',
-    company: 'Lee Realty',
-    source: 'AI chat',
-    status: 'Booked',
-    value: '$3,200',
-    time: '42 min ago',
-    phone: '(555) 018-9021',
-    message: 'Chat answered pricing questions and booked a consultation for tomorrow.',
-    nextStep: 'Prepare consult notes',
-  },
-  {
-    id: 'L-1039',
-    name: 'Ana Ruiz',
-    company: 'Ruiz Roofing',
-    source: 'Review request',
-    status: 'Completed',
-    value: '$0',
-    time: '1 hr ago',
-    phone: '(555) 013-7719',
-    message: 'Review request sent after completed job. Customer clicked Google review link.',
-    nextStep: 'Monitor review',
-  },
-];
-
-const automations = [
-  { name: 'Missed-call text-back', status: 'Live', runs: 18, tone: 'green' },
-  { name: 'Website form follow-up', status: 'Live', runs: 11, tone: 'green' },
-  { name: 'Review request sequence', status: 'Live', runs: 9, tone: 'green' },
-  { name: 'Monthly lead report', status: 'Scheduled', runs: 1, tone: 'amber' },
-];
-
-const checklistSeed = [
-  { label: 'Business profile reviewed', done: true },
-  { label: 'Lead sources connected', done: true },
-  { label: 'Missed-call message approved', done: true },
-  { label: 'Review request template approved', done: false },
-  { label: 'Launch test completed', done: false },
-];
 
 const tabs = [
   { key: 'home', label: 'Home' },
@@ -104,55 +44,180 @@ const tabs = [
 ];
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(hasSupabaseConfig);
+
+  useEffect(() => {
+    if (!supabase) {
+      return undefined;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      setAuthLoading(false);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (authLoading) {
+    return <LoadingScreen label="Opening Cybiture..." />;
+  }
+
+  if (hasSupabaseConfig && !session) {
+    return <AuthScreen />;
+  }
+
+  return <ClientConsole session={session} isDemo={!hasSupabaseConfig} />;
+}
+
+function ClientConsole({ session, isDemo }) {
   const [activeTab, setActiveTab] = useState('home');
   const [selectedLead, setSelectedLead] = useState(null);
-  const [checklist, setChecklist] = useState(checklistSeed);
+  const [workspace, setWorkspace] = useState(getDemoWorkspace());
+  const [loading, setLoading] = useState(!isDemo);
+  const [error, setError] = useState('');
 
-  const completedCount = checklist.filter((item) => item.done).length;
+  useEffect(() => {
+    if (isDemo || !session) {
+      setWorkspace(getDemoWorkspace());
+      setLoading(false);
+      return;
+    }
+
+    loadWorkspace()
+      .then((nextWorkspace) => {
+        setWorkspace(nextWorkspace);
+        setError('');
+      })
+      .catch((loadError) => {
+        setError(loadError.message || 'Could not load client data.');
+      })
+      .finally(() => setLoading(false));
+  }, [isDemo, session]);
+
+  const completedCount = workspace.checklist.filter((item) => item.is_done).length;
+
+  async function refreshWorkspace() {
+    if (isDemo) {
+      setWorkspace(getDemoWorkspace());
+      return;
+    }
+
+    setLoading(true);
+    try {
+      setWorkspace(await loadWorkspace());
+      setError('');
+    } catch (refreshError) {
+      setError(refreshError.message || 'Could not refresh client data.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggleTask(task) {
+    const nextDone = !task.is_done;
+    setWorkspace((current) => ({
+      ...current,
+      checklist: current.checklist.map((item) =>
+        item.id === task.id ? { ...item, is_done: nextDone } : item
+      ),
+    }));
+
+    if (!isDemo) {
+      const { error: updateError } = await supabase
+        .from('setup_tasks')
+        .update({ is_done: nextDone, updated_at: new Date().toISOString() })
+        .eq('id', task.id);
+
+      if (updateError) {
+        Alert.alert('Update failed', updateError.message);
+        refreshWorkspace();
+      }
+    }
+  }
+
+  async function submitSupportRequest(requestBody) {
+    if (!requestBody.trim()) {
+      Alert.alert('Add a request', 'Write what the client needs changed first.');
+      return;
+    }
+
+    if (isDemo) {
+      Alert.alert('Demo request saved', 'In production this will be stored in Supabase.');
+      return;
+    }
+
+    const { error: insertError } = await supabase.from('support_requests').insert({
+      client_id: workspace.profile.id,
+      request_body: requestBody.trim(),
+    });
+
+    if (insertError) {
+      Alert.alert('Request failed', insertError.message);
+      return;
+    }
+
+    Alert.alert('Request sent', 'Cybiture support has the request.');
+  }
+
   const screen = useMemo(() => {
+    if (loading) {
+      return <InlineLoading />;
+    }
+
     if (activeTab === 'leads') {
-      return <LeadsScreen onLeadPress={setSelectedLead} />;
+      return <LeadsScreen leads={workspace.leads} onLeadPress={setSelectedLead} />;
     }
 
     if (activeTab === 'automations') {
-      return <AutomationsScreen />;
+      return <AutomationsScreen automations={workspace.automations} />;
     }
 
     if (activeTab === 'setup') {
       return (
         <SetupScreen
-          checklist={checklist}
+          checklist={workspace.checklist}
           completedCount={completedCount}
-          onToggle={(index) => {
-            setChecklist((items) =>
-              items.map((item, itemIndex) =>
-                itemIndex === index ? { ...item, done: !item.done } : item
-              )
-            );
-          }}
+          onToggle={toggleTask}
         />
       );
     }
 
     if (activeTab === 'support') {
-      return <SupportScreen />;
+      return <SupportScreen onSubmit={submitSupportRequest} />;
     }
 
     return (
       <HomeScreen
+        activity={workspace.activity}
+        automations={workspace.automations}
         completedCount={completedCount}
+        isDemo={isDemo}
+        leads={workspace.leads}
         onLeadPress={setSelectedLead}
         onViewLeads={() => setActiveTab('leads')}
         onViewSetup={() => setActiveTab('setup')}
+        profile={workspace.profile}
       />
     );
-  }, [activeTab, checklist, completedCount]);
+  }, [activeTab, workspace, completedCount, loading, isDemo]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.app}>
-        <Header />
+        <Header
+          isDemo={isDemo}
+          profile={workspace.profile}
+          onSignOut={hasSupabaseConfig ? () => supabase.auth.signOut() : null}
+        />
+        {error ? <ErrorBanner message={error} onRetry={refreshWorkspace} /> : null}
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -167,36 +232,218 @@ export default function App() {
   );
 }
 
-function Header() {
+async function loadWorkspace() {
+  const { data: profile, error: profileError } = await supabase
+    .from('client_profiles')
+    .select('*')
+    .maybeSingle();
+
+  if (profileError) {
+    throw profileError;
+  }
+
+  if (!profile) {
+    throw new Error('No client profile found for this login yet.');
+  }
+
+  const [leadsResult, automationsResult, checklistResult, activityResult] = await Promise.all([
+    supabase
+      .from('leads')
+      .select('*')
+      .eq('client_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(25),
+    supabase
+      .from('automations')
+      .select('*')
+      .eq('client_id', profile.id)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('setup_tasks')
+      .select('*')
+      .eq('client_id', profile.id)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('activity_events')
+      .select('*')
+      .eq('client_id', profile.id)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ]);
+
+  const firstError =
+    leadsResult.error || automationsResult.error || checklistResult.error || activityResult.error;
+
+  if (firstError) {
+    throw firstError;
+  }
+
+  return {
+    profile,
+    leads: leadsResult.data || [],
+    automations: automationsResult.data || [],
+    checklist: checklistResult.data || [],
+    activity: activityResult.data || [],
+  };
+}
+
+function AuthScreen() {
+  const [mode, setMode] = useState('sign-in');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleAuth() {
+    if (!email || !password) {
+      Alert.alert('Missing details', 'Enter an email and password.');
+      return;
+    }
+
+    setLoading(true);
+    const result =
+      mode === 'sign-up'
+        ? await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { business_name: businessName || 'New Cybiture Client' } },
+          })
+        : await supabase.auth.signInWithPassword({ email, password });
+
+    setLoading(false);
+
+    if (result.error) {
+      Alert.alert('Authentication failed', result.error.message);
+      return;
+    }
+
+    if (mode === 'sign-up') {
+      Alert.alert('Account created', 'Check your email if Supabase asks you to confirm.');
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView contentContainerStyle={styles.authWrap}>
+        <Image source={require('./assets/cybiture-mark.png')} style={styles.authLogo} />
+        <Text style={styles.authTitle}>Cybiture Client Console</Text>
+        <Text style={styles.authCopy}>
+          Sign in to review leads, track automations, approve setup tasks, and contact support.
+        </Text>
+
+        <View style={styles.authCard}>
+          <View style={styles.authToggle}>
+            <Pressable
+              style={[styles.authToggleButton, mode === 'sign-in' && styles.authToggleActive]}
+              onPress={() => setMode('sign-in')}
+            >
+              <Text style={[styles.authToggleText, mode === 'sign-in' && styles.authToggleTextActive]}>
+                Sign in
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.authToggleButton, mode === 'sign-up' && styles.authToggleActive]}
+              onPress={() => setMode('sign-up')}
+            >
+              <Text style={[styles.authToggleText, mode === 'sign-up' && styles.authToggleTextActive]}>
+                Create
+              </Text>
+            </Pressable>
+          </View>
+
+          {mode === 'sign-up' ? (
+            <TextInput
+              value={businessName}
+              onChangeText={setBusinessName}
+              placeholder="Business name"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+            />
+          ) : null}
+          <TextInput
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="Email address"
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+          />
+          <TextInput
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            placeholderTextColor={colors.muted}
+            style={styles.input}
+          />
+          <Pressable style={styles.primaryButtonWide} onPress={handleAuth} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color={colors.white} />
+            ) : (
+              <Text style={styles.primaryButtonText}>
+                {mode === 'sign-up' ? 'Create client account' : 'Sign in'}
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Header({ isDemo, profile, onSignOut }) {
   return (
     <View style={styles.header}>
       <View style={styles.brand}>
         <Image source={require('./assets/cybiture-mark.png')} style={styles.logo} />
         <View>
           <Text style={styles.brandName}>Cybiture</Text>
-          <Text style={styles.brandSub}>Client Console</Text>
+          <Text style={styles.brandSub}>{profile?.business_name || 'Client Console'}</Text>
         </View>
       </View>
-      <View style={styles.livePill}>
-        <View style={styles.liveDot} />
-        <Text style={styles.liveText}>Live</Text>
-      </View>
+      {onSignOut ? (
+        <Pressable style={styles.signOutButton} onPress={onSignOut}>
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+      ) : (
+        <View style={styles.livePill}>
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>{isDemo ? 'Demo' : 'Live'}</Text>
+        </View>
+      )}
     </View>
   );
 }
 
-function HomeScreen({ completedCount, onLeadPress, onViewLeads, onViewSetup }) {
+function HomeScreen({
+  activity,
+  automations,
+  completedCount,
+  isDemo,
+  leads,
+  onLeadPress,
+  onViewLeads,
+  onViewSetup,
+  profile,
+}) {
+  const newestLead = leads[0];
+  const liveAutomations = automations.filter((automation) => automation.status === 'Live').length;
+  const reviews = activity.filter((event) => event.title.toLowerCase().includes('review')).length;
+
   return (
     <View>
+      {isDemo ? <DemoNotice /> : null}
       <View style={styles.heroCard}>
         <View style={styles.heroTop}>
-          <Text style={styles.kicker}>Today</Text>
-          <Text style={styles.heroStatus}>4 automations active</Text>
+          <Text style={styles.kicker}>{profile?.plan_name || 'Growth'} plan</Text>
+          <Text style={styles.heroStatus}>{liveAutomations} automations active</Text>
         </View>
         <Text style={styles.heroTitle}>Lead follow-up is running.</Text>
         <Text style={styles.heroCopy}>
-          Cybiture is replying to missed calls, website forms, chats, and review
-          requests in the background.
+          Cybiture is replying to missed calls, website forms, chats, and review requests in the
+          background.
         </Text>
         <View style={styles.heroActions}>
           <Pressable style={styles.primaryButton} onPress={onViewLeads}>
@@ -209,29 +456,42 @@ function HomeScreen({ completedCount, onLeadPress, onViewLeads, onViewSetup }) {
       </View>
 
       <View style={styles.statGrid}>
-        <StatCard label="New leads" value="12" helper="+4 today" />
+        <StatCard label="New leads" value={String(leads.length)} helper="latest pipeline" />
         <StatCard label="Avg reply" value="3m" helper="vs hours" />
-        <StatCard label="Reviews" value="47" helper="+8 this month" />
+        <StatCard label="Reviews" value={String(Math.max(reviews, 1))} helper="tracked activity" />
         <StatCard label="Setup" value={`${completedCount}/5`} helper="tasks done" />
       </View>
 
       <SectionHeader title="Needs attention" action="View all" onPress={onViewLeads} />
-      <LeadCard lead={leads[0]} onPress={() => onLeadPress(leads[0])} featured />
+      {newestLead ? (
+        <LeadCard lead={newestLead} onPress={() => onLeadPress(newestLead)} featured />
+      ) : (
+        <EmptyCard title="No leads yet" copy="New leads will appear here once sources are connected." />
+      )}
 
       <SectionHeader title="Automation activity" />
       <View style={styles.timeline}>
-        <TimelineItem title="Text-back sent" detail="Marcus Johnson replied with job details." time="8 min" />
-        <TimelineItem title="Review request delivered" detail="Ana Ruiz clicked the Google review link." time="1 hr" />
-        <TimelineItem title="Form follow-up started" detail="Bright Dental entered the Growth workflow." time="2 hr" />
+        {activity.length ? (
+          activity.map((event) => (
+            <TimelineItem
+              key={event.id}
+              title={event.title}
+              detail={event.detail}
+              time={formatTime(event.created_at)}
+            />
+          ))
+        ) : (
+          <Text style={styles.emptyText}>No activity yet.</Text>
+        )}
       </View>
     </View>
   );
 }
 
-function LeadsScreen({ onLeadPress }) {
+function LeadsScreen({ leads, onLeadPress }) {
   const [query, setQuery] = useState('');
   const filtered = leads.filter((lead) =>
-    `${lead.name} ${lead.company} ${lead.source}`.toLowerCase().includes(query.toLowerCase())
+    `${lead.contact_name} ${lead.business_name} ${lead.source}`.toLowerCase().includes(query.toLowerCase())
   );
 
   return (
@@ -245,18 +505,20 @@ function LeadsScreen({ onLeadPress }) {
         onChangeText={setQuery}
         placeholder="Search leads, company, or source"
         placeholderTextColor={colors.muted}
-        style={styles.search}
+        style={styles.input}
       />
       <View style={styles.list}>
-        {filtered.map((lead) => (
-          <LeadCard key={lead.id} lead={lead} onPress={() => onLeadPress(lead)} />
-        ))}
+        {filtered.length ? (
+          filtered.map((lead) => <LeadCard key={lead.id} lead={lead} onPress={() => onLeadPress(lead)} />)
+        ) : (
+          <EmptyCard title="No matching leads" copy="Try searching by contact, company, or source." />
+        )}
       </View>
     </View>
   );
 }
 
-function AutomationsScreen() {
+function AutomationsScreen({ automations }) {
   return (
     <View>
       <Text style={styles.screenTitle}>Automations</Text>
@@ -264,20 +526,29 @@ function AutomationsScreen() {
         Each workflow shows whether it is live, scheduled, or waiting for approval.
       </Text>
       <View style={styles.list}>
-        {automations.map((automation) => (
-          <View key={automation.name} style={styles.automationCard}>
-            <View style={styles.automationTop}>
-              <View>
-                <Text style={styles.cardTitle}>{automation.name}</Text>
-                <Text style={styles.cardMeta}>{automation.runs} runs this week</Text>
+        {automations.length ? (
+          automations.map((automation) => (
+            <View key={automation.id} style={styles.automationCard}>
+              <View style={styles.automationTop}>
+                <View>
+                  <Text style={styles.cardTitle}>{automation.name}</Text>
+                  <Text style={styles.cardMeta}>{automation.runs_this_week} runs this week</Text>
+                </View>
+                <StatusPill label={automation.status} tone={automation.tone} />
               </View>
-              <StatusPill label={automation.status} tone={automation.tone} />
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${Math.min((automation.runs_this_week || 0) * 5, 92)}%` },
+                  ]}
+                />
+              </View>
             </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${Math.min(automation.runs * 5, 92)}%` }]} />
-            </View>
-          </View>
-        ))}
+          ))
+        ) : (
+          <EmptyCard title="No automations yet" copy="Live client workflows will appear here." />
+        )}
       </View>
     </View>
   );
@@ -291,21 +562,21 @@ function SetupScreen({ checklist, completedCount, onToggle }) {
         Use this checklist during onboarding so the client knows exactly what is ready and what needs approval.
       </Text>
       <View style={styles.setupSummary}>
-        <Text style={styles.setupNumber}>{completedCount}/5</Text>
+        <Text style={styles.setupNumber}>{completedCount}/{Math.max(checklist.length, 1)}</Text>
         <View style={styles.setupTextWrap}>
-          <Text style={styles.cardTitle}>Launch readiness</Text>
-          <Text style={styles.cardMeta}>Finish the remaining tasks before going live.</Text>
+          <Text style={styles.cardTitleDark}>Launch readiness</Text>
+          <Text style={styles.cardMetaDark}>Finish the remaining tasks before going live.</Text>
         </View>
       </View>
       <View style={styles.list}>
-        {checklist.map((item, index) => (
-          <Pressable key={item.label} style={styles.checkRow} onPress={() => onToggle(index)}>
-            <View style={[styles.checkCircle, item.done && styles.checkCircleDone]}>
-              <Text style={[styles.checkMark, item.done && styles.checkMarkDone]}>
-                {item.done ? '✓' : ''}
+        {checklist.map((item) => (
+          <Pressable key={item.id} style={styles.checkRow} onPress={() => onToggle(item)}>
+            <View style={[styles.checkCircle, item.is_done && styles.checkCircleDone]}>
+              <Text style={[styles.checkMark, item.is_done && styles.checkMarkDone]}>
+                {item.is_done ? '✓' : ''}
               </Text>
             </View>
-            <Text style={[styles.checkLabel, item.done && styles.checkLabelDone]}>{item.label}</Text>
+            <Text style={[styles.checkLabel, item.is_done && styles.checkLabelDone]}>{item.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -313,12 +584,14 @@ function SetupScreen({ checklist, completedCount, onToggle }) {
   );
 }
 
-function SupportScreen() {
+function SupportScreen({ onSubmit }) {
+  const [requestBody, setRequestBody] = useState('');
+
   return (
     <View>
       <Text style={styles.screenTitle}>Support</Text>
       <Text style={styles.screenCopy}>
-        A simple place for future clients to contact Cybiture, request changes, or schedule an optimization call.
+        A simple place for clients to contact Cybiture, request changes, or schedule an optimization call.
       </Text>
       <View style={styles.supportCard}>
         <Text style={styles.supportTitle}>Need a workflow change?</Text>
@@ -327,11 +600,19 @@ function SupportScreen() {
         </Text>
         <TextInput
           multiline
+          value={requestBody}
+          onChangeText={setRequestBody}
           placeholder="Example: change missed-call text to mention weekend appointments."
           placeholderTextColor={colors.muted}
           style={styles.supportInput}
         />
-        <Pressable style={styles.primaryButton}>
+        <Pressable
+          style={styles.primaryButtonWide}
+          onPress={() => {
+            onSubmit(requestBody);
+            setRequestBody('');
+          }}
+        >
           <Text style={styles.primaryButtonText}>Send request</Text>
         </Pressable>
       </View>
@@ -341,6 +622,46 @@ function SupportScreen() {
         <Text style={styles.cardMeta}>getsupport@cybiture.com</Text>
         <Text style={styles.cardMeta}>cal.com/cybiture</Text>
       </View>
+    </View>
+  );
+}
+
+function LoadingScreen({ label }) {
+  return (
+    <SafeAreaView style={styles.centerScreen}>
+      <ActivityIndicator color={colors.blue} size="large" />
+      <Text style={styles.loadingText}>{label}</Text>
+    </SafeAreaView>
+  );
+}
+
+function InlineLoading() {
+  return (
+    <View style={styles.inlineLoading}>
+      <ActivityIndicator color={colors.blue} />
+      <Text style={styles.loadingText}>Loading client data...</Text>
+    </View>
+  );
+}
+
+function DemoNotice() {
+  return (
+    <View style={styles.demoNotice}>
+      <Text style={styles.demoTitle}>Demo mode</Text>
+      <Text style={styles.demoCopy}>
+        Add Supabase keys in `.env` to switch this app to real client login and live data.
+      </Text>
+    </View>
+  );
+}
+
+function ErrorBanner({ message, onRetry }) {
+  return (
+    <View style={styles.errorBanner}>
+      <Text style={styles.errorText}>{message}</Text>
+      <Pressable onPress={onRetry}>
+        <Text style={styles.errorAction}>Retry</Text>
+      </Pressable>
     </View>
   );
 }
@@ -372,17 +693,17 @@ function LeadCard({ lead, onPress, featured = false }) {
   return (
     <Pressable style={[styles.leadCard, featured && styles.leadCardFeatured]} onPress={onPress}>
       <View style={styles.leadTop}>
-        <View>
-          <Text style={styles.cardTitle}>{lead.name}</Text>
-          <Text style={styles.cardMeta}>{lead.company}</Text>
+        <View style={styles.leadTitleWrap}>
+          <Text style={styles.cardTitle}>{lead.contact_name}</Text>
+          <Text style={styles.cardMeta}>{lead.business_name || 'New lead'}</Text>
         </View>
         <StatusPill label={lead.status} tone={lead.status === 'Needs review' ? 'amber' : 'green'} />
       </View>
-      <Text style={styles.leadMessage}>{lead.message}</Text>
+      <Text style={styles.leadMessage}>{lead.message || 'No message yet.'}</Text>
       <View style={styles.leadFooter}>
         <Text style={styles.sourcePill}>{lead.source}</Text>
-        <Text style={styles.cardMeta}>{lead.time}</Text>
-        <Text style={styles.leadValue}>{lead.value}</Text>
+        <Text style={styles.cardMeta}>{formatTime(lead.created_at)}</Text>
+        <Text style={styles.leadValue}>{formatMoney(lead.value_cents)}</Text>
       </View>
     </Pressable>
   );
@@ -399,6 +720,15 @@ function TimelineItem({ title, detail, time }) {
         </View>
         <Text style={styles.timelineDetail}>{detail}</Text>
       </View>
+    </View>
+  );
+}
+
+function EmptyCard({ title, copy }) {
+  return (
+    <View style={styles.emptyCard}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      <Text style={styles.emptyText}>{copy}</Text>
     </View>
   );
 }
@@ -444,35 +774,26 @@ function LeadModal({ lead, onClose }) {
         <View style={styles.modalCard}>
           <View style={styles.modalHandle} />
           <View style={styles.leadTop}>
-            <View>
-              <Text style={styles.modalTitle}>{lead.name}</Text>
-              <Text style={styles.cardMeta}>{lead.company} - {lead.id}</Text>
+            <View style={styles.leadTitleWrap}>
+              <Text style={styles.modalTitle}>{lead.contact_name}</Text>
+              <Text style={styles.cardMeta}>{lead.business_name || 'New lead'}</Text>
             </View>
             <Pressable style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeText}>Close</Text>
             </Pressable>
           </View>
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Phone</Text>
-            <Text style={styles.modalValue}>{lead.phone}</Text>
-          </View>
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Source</Text>
-            <Text style={styles.modalValue}>{lead.source}</Text>
-          </View>
-          <View style={styles.modalRow}>
-            <Text style={styles.modalLabel}>Status</Text>
-            <Text style={styles.modalValue}>{lead.status}</Text>
-          </View>
+          <ModalRow label="Phone" value={lead.phone || 'Not provided'} />
+          <ModalRow label="Source" value={lead.source} />
+          <ModalRow label="Status" value={lead.status} />
           <View style={styles.noteBox}>
             <Text style={styles.modalLabel}>Automation note</Text>
-            <Text style={styles.noteText}>{lead.message}</Text>
+            <Text style={styles.noteText}>{lead.message || 'No automation note yet.'}</Text>
           </View>
           <View style={styles.noteBox}>
             <Text style={styles.modalLabel}>Next step</Text>
-            <Text style={styles.noteText}>{lead.nextStep}</Text>
+            <Text style={styles.noteText}>{lead.next_step || 'Review when ready.'}</Text>
           </View>
-          <Pressable style={styles.primaryButton} onPress={onClose}>
+          <Pressable style={styles.primaryButtonWide} onPress={onClose}>
             <Text style={styles.primaryButtonText}>Mark reviewed</Text>
           </Pressable>
         </View>
@@ -481,14 +802,66 @@ function LeadModal({ lead, onClose }) {
   );
 }
 
+function ModalRow({ label, value }) {
+  return (
+    <View style={styles.modalRow}>
+      <Text style={styles.modalLabel}>{label}</Text>
+      <Text style={styles.modalValue}>{value}</Text>
+    </View>
+  );
+}
+
+function formatMoney(valueCents = 0) {
+  if (!valueCents) {
+    return '$0';
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    currency: 'USD',
+    maximumFractionDigits: 0,
+    style: 'currency',
+  }).format(valueCents / 100);
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) {
+    return 'Just now';
+  }
+
+  const diffMs = Date.now() - new Date(timestamp).getTime();
+  const diffMinutes = Math.max(1, Math.round(diffMs / 60000));
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} min`;
+  }
+
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours} hr`;
+  }
+
+  return `${Math.round(diffHours / 24)} day`;
+}
+
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
+  safeArea: { flex: 1, backgroundColor: colors.white },
+  app: { flex: 1, backgroundColor: colors.white },
+  centerScreen: {
+    alignItems: 'center',
     backgroundColor: colors.white,
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
   },
-  app: {
-    flex: 1,
-    backgroundColor: colors.white,
+  loadingText: {
+    color: colors.muted,
+    fontSize: 14,
+    marginTop: 12,
+  },
+  inlineLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 420,
   },
   header: {
     alignItems: 'center',
@@ -500,27 +873,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  brand: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  logo: {
-    height: 34,
-    resizeMode: 'contain',
-    width: 42,
-  },
+  brand: { alignItems: 'center', flexDirection: 'row', gap: 10, flex: 1 },
+  logo: { height: 34, resizeMode: 'contain', width: 42 },
   brandName: {
     color: colors.ink,
     fontSize: 19,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.2,
   },
-  brandSub: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 1,
-  },
+  brandSub: { color: colors.muted, fontSize: 12, marginTop: 1 },
   livePill: {
     alignItems: 'center',
     backgroundColor: colors.greenSoft,
@@ -530,24 +891,103 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  liveDot: {
-    backgroundColor: colors.green,
-    borderRadius: 99,
-    height: 8,
-    width: 8,
+  liveDot: { backgroundColor: colors.green, borderRadius: 99, height: 8, width: 8 },
+  liveText: { color: '#047857', fontSize: 12, fontWeight: '800' },
+  signOutButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.faint,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  liveText: {
-    color: '#047857',
-    fontSize: 12,
-    fontWeight: '700',
+  signOutText: { color: colors.ink, fontSize: 12, fontWeight: '800' },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 20, paddingBottom: 104 },
+  authWrap: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 22,
   },
-  scroll: {
+  authLogo: {
+    alignSelf: 'center',
+    height: 58,
+    resizeMode: 'contain',
+    width: 86,
+  },
+  authTitle: {
+    color: colors.ink,
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
+    lineHeight: 39,
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  authCopy: {
+    color: colors.muted,
+    fontSize: 15,
+    lineHeight: 23,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  authCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.faint,
+    borderRadius: 24,
+    borderWidth: 1,
+    marginTop: 26,
+    padding: 18,
+  },
+  authToggle: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 14,
+    padding: 5,
+  },
+  authToggleButton: {
+    alignItems: 'center',
+    borderRadius: 12,
     flex: 1,
+    paddingVertical: 11,
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 104,
+  authToggleActive: { backgroundColor: colors.white },
+  authToggleText: { color: colors.muted, fontSize: 13, fontWeight: '800' },
+  authToggleTextActive: { color: colors.ink },
+  input: {
+    backgroundColor: colors.surface,
+    borderColor: colors.faint,
+    borderRadius: 16,
+    borderWidth: 1,
+    color: colors.ink,
+    fontSize: 15,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
+  demoNotice: {
+    backgroundColor: colors.blueSoft,
+    borderColor: '#BFDBFE',
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 14,
+  },
+  demoTitle: { color: colors.blueDark, fontSize: 13, fontWeight: '800' },
+  demoCopy: { color: colors.text, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  errorBanner: {
+    alignItems: 'center',
+    backgroundColor: colors.redSoft,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  errorText: { color: colors.red, flex: 1, fontSize: 13, fontWeight: '700' },
+  errorAction: { color: colors.red, fontSize: 13, fontWeight: '800' },
   heroCard: {
     backgroundColor: colors.navy,
     borderRadius: 28,
@@ -560,16 +1000,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 18,
   },
-  kicker: {
-    color: '#A7F3D0',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  heroStatus: {
-    color: '#BFD7FF',
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  kicker: { color: '#A7F3D0', fontSize: 13, fontWeight: '800' },
+  heroStatus: { color: '#BFD7FF', fontSize: 13, fontWeight: '700' },
   heroTitle: {
     color: colors.white,
     fontSize: 34,
@@ -577,17 +1009,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.9,
     lineHeight: 39,
   },
-  heroCopy: {
-    color: '#CBD5E1',
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 12,
-  },
-  heroActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 22,
-  },
+  heroCopy: { color: '#CBD5E1', fontSize: 15, lineHeight: 23, marginTop: 12 },
+  heroActions: { flexDirection: 'row', gap: 10, marginTop: 22 },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.blue,
@@ -597,11 +1020,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 15,
   },
-  primaryButtonText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
+  primaryButtonWide: {
+    alignItems: 'center',
+    backgroundColor: colors.blue,
+    borderRadius: 16,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 15,
   },
+  primaryButtonText: { color: colors.white, fontSize: 14, fontWeight: '800' },
   secondaryButton: {
     alignItems: 'center',
     backgroundColor: '#172033',
@@ -613,17 +1040,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 15,
   },
-  secondaryButtonText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  statGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 14,
-  },
+  secondaryButtonText: { color: colors.white, fontSize: 14, fontWeight: '800' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 14 },
   statCard: {
     backgroundColor: colors.surface,
     borderColor: colors.faint,
@@ -633,41 +1051,19 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 16,
   },
-  statValue: {
-    color: colors.ink,
-    fontSize: 26,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  statLabel: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  statHelper: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 5,
-  },
+  statValue: { color: colors.ink, fontSize: 26, fontWeight: '800', letterSpacing: -0.4 },
+  statLabel: { color: colors.text, fontSize: 13, fontWeight: '800', marginTop: 3 },
+  statHelper: { color: colors.muted, fontSize: 12, marginTop: 5 },
   sectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 28,
     marginBottom: 12,
+    marginTop: 28,
   },
-  sectionTitle: {
-    color: colors.ink,
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  sectionAction: {
-    color: colors.blue,
-    fontSize: 13,
-    fontWeight: '800',
-  },
+  sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', letterSpacing: -0.2 },
+  sectionAction: { color: colors.blue, fontSize: 13, fontWeight: '800' },
+  list: { gap: 12 },
   leadCard: {
     backgroundColor: colors.white,
     borderColor: colors.faint,
@@ -675,34 +1071,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 18,
   },
-  leadCardFeatured: {
-    borderColor: '#BFDBFE',
-    backgroundColor: '#F8FBFF',
-  },
+  leadCardFeatured: { backgroundColor: '#F8FBFF', borderColor: '#BFDBFE' },
   leadTop: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
   },
-  cardTitle: {
-    color: colors.ink,
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  cardMeta: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 3,
-  },
-  leadMessage: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 12,
-  },
+  leadTitleWrap: { flex: 1 },
+  cardTitle: { color: colors.ink, fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  cardTitleDark: { color: colors.white, fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
+  cardMeta: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 3 },
+  cardMetaDark: { color: '#CBD5E1', fontSize: 13, lineHeight: 19, marginTop: 3 },
+  leadMessage: { color: colors.text, fontSize: 14, lineHeight: 21, marginTop: 12 },
   leadFooter: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -718,32 +1099,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  leadValue: {
-    color: colors.ink,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  statusPill: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  statusGreen: {
-    backgroundColor: colors.greenSoft,
-  },
-  statusAmber: {
-    backgroundColor: colors.amberSoft,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  statusTextGreen: {
-    color: '#047857',
-  },
-  statusTextAmber: {
-    color: '#92400E',
-  },
+  leadValue: { color: colors.ink, fontSize: 13, fontWeight: '800' },
+  statusPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  statusGreen: { backgroundColor: colors.greenSoft },
+  statusAmber: { backgroundColor: colors.amberSoft },
+  statusText: { fontSize: 11, fontWeight: '800' },
+  statusTextGreen: { color: '#047857' },
+  statusTextAmber: { color: '#92400E' },
   timeline: {
     backgroundColor: colors.surface,
     borderColor: colors.faint,
@@ -751,59 +1113,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
   },
-  timelineItem: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  timelineDot: {
-    backgroundColor: colors.green,
-    borderRadius: 99,
-    height: 10,
-    marginTop: 5,
-    width: 10,
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timelineDetail: {
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 3,
-  },
-  screenTitle: {
-    color: colors.ink,
-    fontSize: 31,
-    fontWeight: '800',
-    letterSpacing: -0.7,
-  },
-  screenCopy: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 23,
-    marginTop: 8,
-    marginBottom: 18,
-  },
-  search: {
-    backgroundColor: colors.surface,
-    borderColor: colors.faint,
-    borderRadius: 16,
-    borderWidth: 1,
-    color: colors.ink,
-    fontSize: 15,
-    marginBottom: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  list: {
-    gap: 12,
-  },
+  timelineItem: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
+  timelineDot: { backgroundColor: colors.green, borderRadius: 99, height: 10, marginTop: 5, width: 10 },
+  timelineContent: { flex: 1 },
+  timelineTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  timelineDetail: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 3 },
+  screenTitle: { color: colors.ink, fontSize: 31, fontWeight: '800', letterSpacing: -0.7 },
+  screenCopy: { color: colors.muted, fontSize: 15, lineHeight: 23, marginBottom: 18, marginTop: 8 },
   automationCard: {
     backgroundColor: colors.white,
     borderColor: colors.faint,
@@ -811,11 +1127,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 18,
   },
-  automationTop: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  automationTop: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   progressTrack: {
     backgroundColor: colors.surface,
     borderRadius: 999,
@@ -823,11 +1135,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     overflow: 'hidden',
   },
-  progressFill: {
-    backgroundColor: colors.blue,
-    borderRadius: 999,
-    height: 9,
-  },
+  progressFill: { backgroundColor: colors.blue, borderRadius: 999, height: 9 },
   setupSummary: {
     alignItems: 'center',
     backgroundColor: colors.navy,
@@ -837,15 +1145,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     padding: 20,
   },
-  setupNumber: {
-    color: colors.white,
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  setupTextWrap: {
-    flex: 1,
-  },
+  setupNumber: { color: colors.white, fontSize: 34, fontWeight: '800', letterSpacing: -0.4 },
+  setupTextWrap: { flex: 1 },
   checkRow: {
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -866,27 +1167,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 28,
   },
-  checkCircleDone: {
-    backgroundColor: colors.greenSoft,
-    borderColor: '#A7F3D0',
-  },
-  checkMark: {
-    color: colors.muted,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  checkMarkDone: {
-    color: '#047857',
-  },
-  checkLabel: {
-    color: colors.ink,
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  checkLabelDone: {
-    color: colors.text,
-  },
+  checkCircleDone: { backgroundColor: colors.greenSoft, borderColor: '#A7F3D0' },
+  checkMark: { color: colors.muted, fontSize: 15, fontWeight: '800' },
+  checkMarkDone: { color: '#047857' },
+  checkLabel: { color: colors.ink, flex: 1, fontSize: 15, fontWeight: '700' },
+  checkLabelDone: { color: colors.text },
   supportCard: {
     backgroundColor: colors.white,
     borderColor: colors.faint,
@@ -894,18 +1179,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
   },
-  supportTitle: {
-    color: colors.ink,
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  supportCopy: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 8,
-  },
+  supportTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  supportCopy: { color: colors.muted, fontSize: 14, lineHeight: 22, marginTop: 8 },
   supportInput: {
     backgroundColor: colors.surface,
     borderColor: colors.faint,
@@ -928,6 +1203,14 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 18,
   },
+  emptyCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.faint,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 18,
+  },
+  emptyText: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 6 },
   tabBar: {
     backgroundColor: colors.white,
     borderTopColor: colors.faint,
@@ -936,35 +1219,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     left: 0,
+    paddingBottom: 12,
     paddingHorizontal: 10,
     paddingTop: 10,
-    paddingBottom: 12,
     position: 'absolute',
     right: 0,
   },
-  tabButton: {
-    alignItems: 'center',
-    borderRadius: 14,
-    flex: 1,
-    paddingHorizontal: 5,
-    paddingVertical: 11,
-  },
-  tabButtonActive: {
-    backgroundColor: colors.blueSoft,
-  },
-  tabText: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  tabTextActive: {
-    color: colors.blueDark,
-  },
-  modalBackdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
+  tabButton: { alignItems: 'center', borderRadius: 14, flex: 1, paddingHorizontal: 5, paddingVertical: 11 },
+  tabButtonActive: { backgroundColor: colors.blueSoft },
+  tabText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
+  tabTextActive: { color: colors.blueDark },
+  modalBackdrop: { backgroundColor: 'rgba(15, 23, 42, 0.35)', flex: 1, justifyContent: 'flex-end' },
   modalCard: {
     backgroundColor: colors.white,
     borderTopLeftRadius: 30,
@@ -980,23 +1245,14 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     width: 46,
   },
-  modalTitle: {
-    color: colors.ink,
-    fontSize: 25,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
+  modalTitle: { color: colors.ink, fontSize: 25, fontWeight: '800', letterSpacing: -0.4 },
   closeButton: {
     backgroundColor: colors.surface,
     borderRadius: 999,
     paddingHorizontal: 13,
     paddingVertical: 9,
   },
-  closeText: {
-    color: colors.ink,
-    fontSize: 12,
-    fontWeight: '800',
-  },
+  closeText: { color: colors.ink, fontSize: 12, fontWeight: '800' },
   modalRow: {
     borderBottomColor: colors.faint,
     borderBottomWidth: 1,
@@ -1004,29 +1260,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
   },
-  modalLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  modalValue: {
-    color: colors.ink,
-    flexShrink: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    textAlign: 'right',
-  },
-  noteBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    marginTop: 14,
-    padding: 16,
-  },
-  noteText: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 8,
-  },
+  modalLabel: { color: colors.muted, fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  modalValue: { color: colors.ink, flexShrink: 1, fontSize: 14, fontWeight: '700', textAlign: 'right' },
+  noteBox: { backgroundColor: colors.surface, borderRadius: 18, marginTop: 14, padding: 16 },
+  noteText: { color: colors.text, fontSize: 14, lineHeight: 21, marginTop: 8 },
 });
