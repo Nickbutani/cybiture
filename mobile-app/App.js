@@ -648,6 +648,45 @@ function DashboardHeader({ businessName, planName }) {
   );
 }
 
+function ScreenHeader({ label, title, metric, copy }) {
+  return (
+    <View style={styles.screenHeaderCard}>
+      <View style={styles.screenHeaderTop}>
+        <Text style={styles.screenLabel}>{label}</Text>
+        <View style={styles.metricPill}>
+          <Text style={styles.metricPillText}>{metric}</Text>
+        </View>
+      </View>
+      <Text style={styles.screenTitle}>{title}</Text>
+      <Text style={styles.screenCopy}>{copy}</Text>
+    </View>
+  );
+}
+
+function MiniMetric({ label, value, tone }) {
+  return (
+    <View style={styles.miniMetric}>
+      <View style={[styles.miniDot, styles[`quickAccent${capitalize(tone)}`]]} />
+      <Text style={styles.miniValue}>{value}</Text>
+      <Text style={styles.miniLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function SupportOption({ title, copy }) {
+  return (
+    <View style={styles.supportOption}>
+      <View style={styles.supportOptionIcon}>
+        <Text style={styles.supportOptionIconText}>+</Text>
+      </View>
+      <View style={styles.supportOptionCopy}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardMeta}>{copy}</Text>
+      </View>
+    </View>
+  );
+}
+
 function HeroSignal({ label, value }) {
   return (
     <View style={styles.heroSignal}>
@@ -675,13 +714,21 @@ function LeadsScreen({ leads, onLeadPress }) {
     `${lead.contact_name} ${lead.business_name} ${lead.source}`.toLowerCase().includes(query.toLowerCase()) &&
     (filter === 'All' || lead.status === filter)
   );
+  const reviewCount = leads.filter((lead) => lead.status === 'Needs review').length;
 
   return (
     <View>
-      <Text style={styles.screenTitle}>Lead inbox</Text>
-      <Text style={styles.screenCopy}>
-        Review new opportunities, see what Cybiture already sent, and decide what needs a human touch.
-      </Text>
+      <ScreenHeader
+        label="Leads"
+        title="Lead inbox"
+        metric={`${filtered.length}/${leads.length}`}
+        copy="Review new opportunities, see what Cybiture already sent, and decide what needs a human touch."
+      />
+      <View style={styles.inboxSummary}>
+        <MiniMetric label="Needs review" value={String(reviewCount)} tone="amber" />
+        <MiniMetric label="Booked" value={String(leads.filter((lead) => lead.status === 'Booked').length)} tone="green" />
+        <MiniMetric label="Avg reply" value="3m" tone="blue" />
+      </View>
       <TextInput
         value={query}
         onChangeText={setQuery}
@@ -721,10 +768,12 @@ function ApprovalsScreen({ approvals, onDecision }) {
 
   return (
     <View>
-      <Text style={styles.screenTitle}>Approvals</Text>
-      <Text style={styles.screenCopy}>
-        Review messages, timing changes, and workflows before Cybiture turns them live.
-      </Text>
+      <ScreenHeader
+        label="Human loop"
+        title="Approvals"
+        metric={String(pending.length)}
+        copy="Review messages, timing changes, and workflows before Cybiture turns them live."
+      />
       <View style={styles.list}>
         {[...pending, ...resolved].length ? (
           [...pending, ...resolved].map((approval) => (
@@ -743,6 +792,7 @@ function ApprovalCard({ approval, onDecision }) {
 
   return (
     <View style={[styles.approvalCard, needsReview && styles.approvalCardActive]}>
+      <View style={[styles.approvalRail, needsReview ? styles.approvalRailActive : styles.approvalRailDone]} />
       <View style={styles.approvalTop}>
         <View style={styles.leadTitleWrap}>
           <Text style={styles.cardTitle}>{approval.title}</Text>
@@ -802,17 +852,25 @@ function AutomationsScreen({ automations }) {
 }
 
 function SetupScreen({ checklist, completedCount, onToggle }) {
+  const total = Math.max(checklist.length, 1);
+  const progressWidth = `${Math.round((completedCount / total) * 100)}%`;
+
   return (
     <View>
-      <Text style={styles.screenTitle}>Client setup</Text>
-      <Text style={styles.screenCopy}>
-        Use this checklist during onboarding so the client knows exactly what is ready and what needs approval.
-      </Text>
+      <ScreenHeader
+        label="Onboarding"
+        title="Client setup"
+        metric={`${completedCount}/${total}`}
+        copy="Use this checklist during onboarding so the client knows exactly what is ready and what needs approval."
+      />
       <View style={styles.setupSummary}>
-        <Text style={styles.setupNumber}>{completedCount}/{Math.max(checklist.length, 1)}</Text>
+        <Text style={styles.setupNumber}>{completedCount}/{total}</Text>
         <View style={styles.setupTextWrap}>
           <Text style={styles.cardTitleDark}>Launch readiness</Text>
           <Text style={styles.cardMetaDark}>Finish the remaining tasks before going live.</Text>
+          <View style={styles.setupProgressTrack}>
+            <View style={[styles.setupProgressFill, { width: progressWidth }]} />
+          </View>
         </View>
       </View>
       <View style={styles.list}>
@@ -836,10 +894,16 @@ function SupportScreen({ onSubmit }) {
 
   return (
     <View>
-      <Text style={styles.screenTitle}>Support</Text>
-      <Text style={styles.screenCopy}>
-        A simple place for clients to contact Cybiture, request changes, or schedule an optimization call.
-      </Text>
+      <ScreenHeader
+        label="Help desk"
+        title="Support"
+        metric="24h"
+        copy="A simple place for clients to contact Cybiture, request changes, or schedule an optimization call."
+      />
+      <View style={styles.supportOptions}>
+        <SupportOption title="Request change" copy="Update message timing, routing, or review links." />
+        <SupportOption title="Book review" copy="Schedule an optimization call with Cybiture." />
+      </View>
       <View style={styles.supportCard}>
         <Text style={styles.supportTitle}>Need a workflow change?</Text>
         <Text style={styles.supportCopy}>
@@ -1205,6 +1269,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 5,
   },
+  screenHeaderCard: {
+    backgroundColor: colors.white,
+    borderColor: colors.faint,
+    borderRadius: 26,
+    borderWidth: 1,
+    marginBottom: 14,
+    padding: 18,
+    ...softShadow,
+  },
+  screenHeaderTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   profileBadge: {
     alignItems: 'center',
     backgroundColor: colors.navy,
@@ -1309,6 +1388,51 @@ const styles = StyleSheet.create({
   },
   filterTextActive: {
     color: colors.blueDark,
+  },
+  metricPill: {
+    backgroundColor: colors.blueSoft,
+    borderColor: '#BFDBFE',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+  },
+  metricPillText: {
+    color: colors.blueDark,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  inboxSummary: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  miniMetric: {
+    backgroundColor: colors.white,
+    borderColor: colors.faint,
+    borderRadius: 18,
+    borderWidth: 1,
+    flex: 1,
+    padding: 12,
+    ...softShadow,
+  },
+  miniDot: {
+    borderRadius: 999,
+    height: 5,
+    marginBottom: 9,
+    width: 24,
+  },
+  miniValue: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  miniLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 3,
   },
   demoNotice: {
     backgroundColor: colors.blueSoft,
@@ -1607,6 +1731,7 @@ const styles = StyleSheet.create({
     borderColor: colors.faint,
     borderRadius: 22,
     borderWidth: 1,
+    overflow: 'hidden',
     padding: 18,
     ...softShadow,
   },
@@ -1619,6 +1744,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
+  },
+  approvalRail: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 4,
+  },
+  approvalRailActive: {
+    backgroundColor: colors.amber,
+  },
+  approvalRailDone: {
+    backgroundColor: colors.green,
   },
   approvalBody: {
     color: colors.text,
@@ -1680,6 +1818,18 @@ const styles = StyleSheet.create({
   },
   setupNumber: { color: colors.white, fontSize: 34, fontWeight: '800', letterSpacing: -0.4 },
   setupTextWrap: { flex: 1 },
+  setupProgressTrack: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 999,
+    height: 8,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  setupProgressFill: {
+    backgroundColor: '#35D29A',
+    borderRadius: 999,
+    height: 8,
+  },
   checkRow: {
     alignItems: 'center',
     backgroundColor: colors.white,
@@ -1713,6 +1863,38 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 20,
     ...softShadow,
+  },
+  supportOptions: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  supportOption: {
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderColor: colors.faint,
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 14,
+    ...softShadow,
+  },
+  supportOptionIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.blueSoft,
+    borderRadius: 16,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  supportOptionIconText: {
+    color: colors.blueDark,
+    fontSize: 21,
+    fontWeight: '800',
+    lineHeight: 24,
+  },
+  supportOptionCopy: {
+    flex: 1,
   },
   supportTitle: { color: colors.ink, fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   supportCopy: { color: colors.muted, fontSize: 14, lineHeight: 22, marginTop: 8 },
