@@ -2212,6 +2212,7 @@ html.has-js .hero.reveal {
 
 .demo-agenda,
 .demo-outcomes,
+.demo-roi,
 .demo-close-plan {
   max-width: 1120px;
   margin: 0 auto 72px;
@@ -2373,6 +2374,71 @@ html.has-js .hero.reveal {
 
 .demo-outcomes .is-after li::before {
   background: #22c55e;
+}
+
+.demo-roi {
+  display: grid;
+  align-items: center;
+  gap: 28px;
+  padding-top: 34px;
+  padding-bottom: 34px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(224, 242, 254, 0.86), transparent 22rem),
+    #fff;
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 24px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
+  grid-template-columns: 0.42fr 0.58fr;
+}
+
+.demo-roi-copy {
+  padding-left: 10px;
+}
+
+.demo-roi-copy h2 {
+  margin: 16px 0 12px;
+  color: var(--text);
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+.demo-roi-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.demo-roi-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.demo-roi-grid article {
+  min-width: 0;
+  padding: 20px;
+  background: rgba(249, 250, 251, 0.92);
+  border: 1px solid rgba(229, 231, 235, 0.95);
+  border-radius: 18px;
+}
+
+.demo-roi-grid strong {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--blue);
+  font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.demo-roi-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .demo-workspace {
@@ -3191,6 +3257,7 @@ html.has-js .hero.reveal {
 
   .demo-agenda,
   .demo-outcomes,
+  .demo-roi,
   .demo-close-plan {
     margin-bottom: 44px;
     padding: 0 20px;
@@ -3201,9 +3268,19 @@ html.has-js .hero.reveal {
   }
 
   .demo-outcomes,
+  .demo-roi,
+  .demo-roi-grid,
   .demo-close-plan,
   .demo-close-grid {
     grid-template-columns: 1fr;
+  }
+
+  .demo-roi {
+    padding: 26px 20px;
+  }
+
+  .demo-roi-copy {
+    padding-left: 0;
   }
 
   .demo-workspace {
@@ -3381,6 +3458,10 @@ html.has-js .hero.reveal {
 
   .demo-outcomes article {
     padding: 22px;
+  }
+
+  .demo-roi-grid {
+    grid-template-columns: 1fr;
   }
 
   .demo-input-panel,
